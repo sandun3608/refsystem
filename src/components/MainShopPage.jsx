@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
 import { Store, Plus, Sparkles, ArrowRight, Trash2, Image, ShieldCheck } from 'lucide-react';
+import { compressImage } from '../utils/imageHelper';
 
 export default function MainShopPage({ shops, onSelectShop, onAddShop, onDeleteShop }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formError, setFormError] = useState('');
+  
+  const generateNewShopId = () => {
+    return `MS-${Math.floor(1000 + Math.random() * 9000)}`;
+  };
+
   const [formData, setFormData] = useState({
     name: '',
-    id: `MS00${shops.length + 1}`,
+    id: generateNewShopId(),
     image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60'
   });
 
@@ -17,15 +23,28 @@ export default function MainShopPage({ shops, onSelectShop, onAddShop, onDeleteS
     { label: 'Modern Boutique', url: 'https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?w=400&auto=format&fit=crop&q=60' }
   ];
 
-  const handleImageFileChange = (e) => {
-    const file = e.target.files[0];
+  const handleImageFileChange = async (e) => {
+    const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, image: reader.result }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file, 600, 600, 0.7);
+        if (compressed) {
+          setFormData(prev => ({ ...prev, image: compressed }));
+        }
+      } catch (err) {
+        console.warn('Image compression error', err);
+      }
     }
+  };
+
+  const handleOpenAddModal = () => {
+    setFormData({
+      name: '',
+      id: generateNewShopId(),
+      image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60'
+    });
+    setFormError('');
+    setIsFormOpen(true);
   };
 
   const handleSubmit = (e) => {
@@ -35,7 +54,7 @@ export default function MainShopPage({ shops, onSelectShop, onAddShop, onDeleteS
       setFormError('Please enter Importer Shop Name before saving');
       return;
     }
-    const resolvedId = formData.id?.trim() || `MS00${shops.length + 1}`;
+    const resolvedId = formData.id?.trim() || generateNewShopId();
     onAddShop({
       ...formData,
       id: resolvedId,
@@ -43,7 +62,7 @@ export default function MainShopPage({ shops, onSelectShop, onAddShop, onDeleteS
     });
     setFormData({
       name: '',
-      id: `MS00${shops.length + 2}`,
+      id: generateNewShopId(),
       image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60'
     });
     setFormError('');
@@ -72,7 +91,7 @@ export default function MainShopPage({ shops, onSelectShop, onAddShop, onDeleteS
       {/* Main Center Action: "Add Your Shop" Button */}
       <div className="flex flex-col items-center justify-center space-y-1.5">
         <button
-          onClick={() => setIsFormOpen(true)}
+          onClick={handleOpenAddModal}
           className="group relative flex items-center justify-center gap-3 w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl font-bold shadow-md shadow-blue-500/20 active:scale-98 transition-all duration-200 border border-blue-400/30"
         >
           <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -140,11 +159,11 @@ export default function MainShopPage({ shops, onSelectShop, onAddShop, onDeleteS
                 </div>
 
                 <div className="flex items-center space-x-2 pl-2">
-                  {onDeleteShop && shops.length > 1 && (
+                  {onDeleteShop && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm(`Are you sure you want to delete ${shop.name}?`)) {
+                        if (confirm(`Are you sure you want to delete "${shop.name}"?\nAll products and orders belonging to this shop will also be permanently deleted!`)) {
                           onDeleteShop(shop.id);
                         }
                       }}
@@ -222,7 +241,7 @@ export default function MainShopPage({ shops, onSelectShop, onAddShop, onDeleteS
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. MS001"
+                  placeholder="e.g. MS-5421"
                   value={formData.id}
                   onChange={(e) => setFormData({ ...formData, id: e.target.value })}
                   className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-medium text-slate-900"

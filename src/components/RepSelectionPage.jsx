@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { UserCheck, Plus, Search, Phone, ArrowRight, Trash2, Image, Shield } from 'lucide-react';
+import { compressImage } from '../utils/imageHelper';
 
 export default function RepSelectionPage({ reps, onSelectRep, onAddRep, onDeleteRep, mainShop }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -19,14 +20,17 @@ export default function RepSelectionPage({ reps, onSelectRep, onAddRep, onDelete
     { label: 'Rep 4', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&auto=format&fit=crop&q=60' }
   ];
 
-  const handleImageFileChange = (e) => {
-    const file = e.target.files[0];
+  const handleImageFileChange = async (e) => {
+    const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, image: reader.result }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file, 600, 600, 0.7);
+        if (compressed) {
+          setFormData(prev => ({ ...prev, image: compressed }));
+        }
+      } catch (err) {
+        console.warn('Image compression error', err);
+      }
     }
   };
 

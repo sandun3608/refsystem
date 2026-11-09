@@ -54,6 +54,18 @@ async function writeDb(data) {
 app.get('/api/data', async (req, res) => {
   try {
     const db = await readDb();
+    if (!db.shops || db.shops.length === 0) {
+      db.products = [];
+      db.orders = [];
+    } else {
+      const validShopIds = new Set(db.shops.map(s => s.id));
+      if (Array.isArray(db.products)) {
+        db.products = db.products.filter(p => p && p.shopId && validShopIds.has(p.shopId));
+      }
+      if (Array.isArray(db.orders)) {
+        db.orders = db.orders.filter(o => o && o.mainShopId && validShopIds.has(o.mainShopId));
+      }
+    }
     res.json(db);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -96,13 +108,27 @@ app.delete('/api/shops/:id', async (req, res) => {
   try {
     const db = await readDb();
     const shopId = req.params.id;
-    db.shops = db.shops.filter(s => s.id !== shopId);
-    if (Array.isArray(db.products)) db.products = db.products.filter(p => p.shopId !== shopId);
+    db.shops = (db.shops || []).filter(s => s.id !== shopId);
+
+    if (db.shops.length === 0) {
+      // If no importer shops remain, wipe products and orders completely
+      db.products = [];
+      db.orders = [];
+    } else {
+      const validShopIds = new Set(db.shops.map(s => s.id));
+      if (Array.isArray(db.products)) {
+        // Delete products of deleted shop AND purge any orphaned products with no valid shop
+        db.products = db.products.filter(p => p.shopId && p.shopId !== shopId && validShopIds.has(p.shopId));
+      }
+      if (Array.isArray(db.orders)) {
+        db.orders = db.orders.filter(o => o.mainShopId && o.mainShopId !== shopId && validShopIds.has(o.mainShopId));
+      }
+    }
+
     if (Array.isArray(db.reps)) db.reps = db.reps.filter(r => r.shopId !== shopId);
     if (Array.isArray(db.customers)) db.customers = db.customers.filter(c => c.shopId !== shopId);
-    if (Array.isArray(db.orders)) db.orders = db.orders.filter(o => o.mainShopId !== shopId);
     await writeDb(db);
-    res.json({ success: true });
+    res.json({ success: true, remainingShopsCount: db.shops.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -266,11 +292,18 @@ app.post('/api/products', async (req, res) => {
     const { name, brand, costPrice, salePrice, stock, lowStockThreshold, batchId, image, expiryDate, shopId } = req.body;
     if (!name) return res.status(400).json({ error: 'Product name is required' });
     const db = await readDb();
+
+    // Auto-resolve shopId if not explicitly provided
+    let resolvedShopId = shopId;
+    if (!resolvedShopId && Array.isArray(db.shops) && db.shops.length > 0) {
+      resolvedShopId = db.shops[0].id;
+    }
+
     const newProduct = {
       id: 'PRD-' + Date.now().toString().slice(-5),
       name,
       brand: brand || 'General',
-      shopId: shopId || '',
+      shopId: resolvedShopId || '',
       costPrice: Number(costPrice) || 0,
       salePrice: Number(salePrice) || 0,
       discount: 0,
@@ -327,7 +360,7 @@ app.delete('/api/products/:id', async (req, res) => {
 // Bulk Add Products (from Excel Import)
 app.post('/api/products/bulk-add', async (req, res) => {
   try {
-    const { products: rawProducts } = req.body;
+    const { products: rawProducts, shopId: bulkShopId } = req.body;
     if (!Array.isArray(rawProducts) || rawProducts.length === 0) {
       return res.status(400).json({ error: 'products must be a non-empty array' });
     }
@@ -335,6 +368,8 @@ app.post('/api/products/bulk-add', async (req, res) => {
     const db = await readDb();
     if (!Array.isArray(db.categories)) db.categories = [];
     if (!Array.isArray(db.products)) db.products = [];
+
+    const defaultShopId = bulkShopId || (db.shops && db.shops.length > 0 ? db.shops[0].id : '');
 
     const addedProducts = [];
     const timestamp = Date.now();
@@ -353,7 +388,7 @@ app.post('/api/products/bulk-add', async (req, res) => {
         id: p.id || `PRD-${timestamp.toString().slice(-4)}-${idx + 1}`,
         name,
         brand,
-        shopId: p.shopId || '',
+        shopId: p.shopId || defaultShopId || '',
         costPrice: Number(p.costPrice) || 0,
         salePrice: Number(p.salePrice) || 0,
         discount: Number(p.discount) || 0,

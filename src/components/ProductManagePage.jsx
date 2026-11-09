@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { compressImage } from '../utils/imageHelper';
 import { 
   Plus, 
   FileSpreadsheet, 
@@ -29,6 +30,7 @@ import * as XLSX from 'xlsx';
 export default function ProductManagePage({
   products,
   categories,
+  activeMainShop,
   onAddProduct,
   onUpdateProduct,
   onDeleteProduct,
@@ -265,6 +267,7 @@ export default function ProductManagePage({
           parsedProducts.push({
             name: String(name).trim(),
             brand: brand || 'General',
+            shopId: activeMainShop?.id || '',
             costPrice,
             salePrice,
             stock,
@@ -379,6 +382,7 @@ export default function ProductManagePage({
       ...formData,
       name: formData.name.trim(),
       brand: formData.brand || categories[0] || 'General',
+      shopId: activeMainShop?.id || '',
       costPrice: Number(formData.costPrice) || 0,
       salePrice: saleNum,
       stock: Number(formData.stock) || 0,
@@ -525,6 +529,33 @@ export default function ProductManagePage({
         accept=".xlsx, .xls, .csv"
         className="hidden"
       />
+
+      {/* Active Importer Shop Info Banner */}
+      {activeMainShop ? (
+        <div className="flex items-center justify-between p-2.5 bg-blue-50/80 border border-blue-200/90 rounded-2xl shadow-2xs">
+          <div className="flex items-center space-x-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0">
+              🏪
+            </div>
+            <div className="min-w-0">
+              <span className="text-[9px] font-black tracking-wider text-blue-700 bg-white px-1.5 py-0.5 rounded border border-blue-200">
+                {activeMainShop.id}
+              </span>
+              <p className="text-xs font-bold text-slate-800 truncate mt-0.5">
+                {activeMainShop.name}
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">
+            Selected Importer
+          </span>
+        </div>
+      ) : (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-center space-x-2 text-amber-800 text-xs">
+          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+          <span className="font-medium">No Importer Shop selected. Please select a shop first.</span>
+        </div>
+      )}
 
       {/* Top Hero Action Buttons Grid */}
       <div className="grid grid-cols-2 gap-2">
@@ -770,14 +801,17 @@ export default function ProductManagePage({
         type="file"
         accept="image/*"
         ref={addImageInputRef}
-        onChange={(e) => {
+        onChange={async (e) => {
           const file = e.target.files?.[0];
           if (file) {
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-              setFormData(prev => ({ ...prev, image: evt.target.result }));
-            };
-            reader.readAsDataURL(file);
+            try {
+              const compressed = await compressImage(file, 600, 600, 0.7);
+              if (compressed) {
+                setFormData(prev => ({ ...prev, image: compressed }));
+              }
+            } catch (err) {
+              console.warn('Image compression error', err);
+            }
           }
         }}
         className="hidden"
@@ -787,14 +821,17 @@ export default function ProductManagePage({
         type="file"
         accept="image/*"
         ref={editImageInputRef}
-        onChange={(e) => {
+        onChange={async (e) => {
           const file = e.target.files?.[0];
           if (file) {
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-              setFormData(prev => ({ ...prev, image: evt.target.result }));
-            };
-            reader.readAsDataURL(file);
+            try {
+              const compressed = await compressImage(file, 600, 600, 0.7);
+              if (compressed) {
+                setFormData(prev => ({ ...prev, image: compressed }));
+              }
+            } catch (err) {
+              console.warn('Image compression error', err);
+            }
           }
         }}
         className="hidden"

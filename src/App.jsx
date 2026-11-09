@@ -53,36 +53,75 @@ export default function App() {
 
   const STORAGE_KEY = 'lumicosmetics_client_store_v1';
 
-  // Sanitize helper to purge any stale test entities ("Haj", "Bb", "Ahha")
+  // Sanitize helper to purge any stale test entities ("Haj", "Bb", "Ahha") and orphaned products/orders
   const sanitizeData = (data) => {
     if (!data) return data;
     if (Array.isArray(data.shops)) {
-      data.shops = data.shops.filter(s => s.id !== 'MS001jaja' && s.name !== 'Haj');
+      data.shops = data.shops.filter(s => s && s.id !== 'MS001jaja' && s.name !== 'Haj');
+    }
+    const currentShopIds = new Set((data.shops || []).map(s => s.id));
+    if (Array.isArray(data.products)) {
+      if (!data.shops || data.shops.length === 0) {
+        data.products = [];
+      } else {
+        // Discard any products with no shopId, or whose shopId does not exist in current shops
+        data.products = data.products.filter(p => p && p.shopId && currentShopIds.has(p.shopId));
+      }
+    }
+    if (Array.isArray(data.orders)) {
+      if (!data.shops || data.shops.length === 0) {
+        data.orders = [];
+      } else {
+        data.orders = data.orders.filter(o => o && o.mainShopId && currentShopIds.has(o.mainShopId));
+      }
     }
     if (Array.isArray(data.reps)) {
-      data.reps = data.reps.filter(r => r.id !== 'REP-821' && r.name !== 'Bb');
+      data.reps = data.reps.filter(r => r && r.id !== 'REP-821' && r.name !== 'Bb');
     }
     if (Array.isArray(data.customers)) {
-      data.customers = data.customers.filter(c => c.id !== 'CUST-01' && c.name !== 'Ahha');
+      data.customers = data.customers.filter(c => c && c.id !== 'CUST-01' && c.name !== 'Ahha');
     }
     return data;
   };
 
-  // Synchronously commit database to browser persistent storage
+  // Synchronously commit database to browser persistent storage with quota-safe fallback
   const saveToLocalStorage = (customState = {}) => {
     try {
+      let existing = {};
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) existing = JSON.parse(stored) || {};
+      } catch (e) {}
+
       const dataToSave = {
-        shops,
-        reps,
-        customers,
-        categories,
-        products,
-        orders,
+        shops: customState.shops !== undefined ? customState.shops : (shops && shops.length > 0 ? shops : (existing.shops || [])),
+        reps: customState.reps !== undefined ? customState.reps : (reps && reps.length > 0 ? reps : (existing.reps || [])),
+        customers: customState.customers !== undefined ? customState.customers : (customers && customers.length > 0 ? customers : (existing.customers || [])),
+        categories: customState.categories !== undefined ? customState.categories : (categories && categories.length > 0 ? categories : (existing.categories || [])),
+        products: customState.products !== undefined ? customState.products : (products && products.length > 0 ? products : (existing.products || [])),
+        orders: customState.orders !== undefined ? customState.orders : (orders && orders.length > 0 ? orders : (existing.orders || [])),
         updatedAt: Date.now(),
         ...customState
       };
       sanitizeData(dataToSave);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+      } catch (quotaErr) {
+        console.warn('LocalStorage quota exceeded, compressing entries to ensure shops and products persist', quotaErr);
+        const leanData = {
+          ...dataToSave,
+          shops: (dataToSave.shops || []).map(s => ({
+            ...s,
+            image: (s.image && s.image.length > 1500) ? 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60' : s.image
+          })),
+          products: (dataToSave.products || []).map(p => ({
+            ...p,
+            image: (p.image && p.image.length > 1500) ? '' : p.image
+          }))
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(leanData));
+      }
     } catch (e) {
       console.warn('LocalStorage save error:', e);
     }
@@ -118,50 +157,73 @@ export default function App() {
       setIsLoading(false);
     }
 
-    // 2. Fetch from backend and sync
+    // 2. Fetch from backend and synchronize authoritative data
     try {
       let serverData = await api.getAllData();
       if (serverData) {
         serverData = sanitizeData(serverData);
 
-        const localHasData = localStore && (
-          (localStore.shops && localStore.shops.length > 0) ||
-          (localStore.products && localStore.products.length > 0) ||
-          (localStore.customers && localStore.customers.length > 0) ||
-          (localStore.reps && localStore.reps.length > 0) ||
-          (localStore.orders && localStore.orders.length > 0)
-        );
+        const serverHasShops = Array.isArray(serverData.shops) && serverData.shops.length > 0;
+        const localHasShops = localStore && Array.isArray(localStore.shops) && localStore.shops.length > 0;
 
-        const serverIsEmpty = (!serverData.shops || serverData.shops.length === 0) &&
-                              (!serverData.products || serverData.products.length === 0) &&
-                              (!serverData.customers || serverData.customers.length === 0);
+        if (serverHasShops) {
+          // Server has active shops: synchronize state with server
+          const validShopIds = new Set(serverData.shops.map(s => s.id));
+          const cleanProducts = (serverData.products || []).filter(p => p && p.shopId && validShopIds.has(p.shopId));
+          const cleanOrders = (serverData.orders || []).filter(o => o && o.mainShopId && validShopIds.has(o.mainShopId));
 
-        if (localHasData && serverIsEmpty) {
-          // Render free instance rebooted and lost disk data! Push local state to server:
-          await api.restoreBackup({
-            shops: localStore.shops || [],
-            reps: localStore.reps || [],
-            customers: localStore.customers || [],
-            categories: localStore.categories || [],
-            products: localStore.products || [],
-            orders: localStore.orders || []
-          });
-        } else if (!localStore) {
-          // New device: initialize state and local storage with server data
-          setShops(serverData.shops || []);
-          setReps(serverData.reps || []);
-          setCustomers(serverData.customers || []);
-          setCategories(serverData.categories || []);
-          setProducts(serverData.products || []);
-          setOrders(serverData.orders || []);
+          setShops(serverData.shops);
+          setProducts(cleanProducts);
+          setOrders(cleanOrders);
+          if (serverData.categories?.length > 0) setCategories(serverData.categories);
+          if (serverData.reps?.length > 0) setReps(serverData.reps);
+          if (serverData.customers?.length > 0) setCustomers(serverData.customers);
+
           saveToLocalStorage({
-            shops: serverData.shops || [],
-            reps: serverData.reps || [],
-            customers: serverData.customers || [],
+            shops: serverData.shops,
+            products: cleanProducts,
+            orders: cleanOrders,
             categories: serverData.categories || [],
-            products: serverData.products || [],
-            orders: serverData.orders || []
+            reps: serverData.reps || [],
+            customers: serverData.customers || []
           });
+        } else if (localHasShops) {
+          // Local storage has shops but server lost them (e.g. backend disk wipe / restart)
+          // Push local shops and clean products to server:
+          const validShopIds = new Set(localStore.shops.map(s => s.id));
+          const cleanProducts = (localStore.products || []).filter(p => p && p.shopId && validShopIds.has(p.shopId));
+          const cleanOrders = (localStore.orders || []).filter(o => o && o.mainShopId && validShopIds.has(o.mainShopId));
+
+          setShops(localStore.shops);
+          setProducts(cleanProducts);
+          setOrders(cleanOrders);
+
+          await api.restoreBackup({
+            shops: localStore.shops,
+            products: cleanProducts,
+            orders: cleanOrders,
+            categories: localStore.categories || [],
+            reps: localStore.reps || [],
+            customers: localStore.customers || []
+          });
+        } else {
+          // Both server and local have NO shops!
+          // Completely clean slate: wipe any orphaned products or orders
+          setShops([]);
+          setProducts([]);
+          setOrders([]);
+          saveToLocalStorage({ shops: [], products: [], orders: [] });
+
+          if ((serverData.products && serverData.products.length > 0) || (serverData.orders && serverData.orders.length > 0)) {
+            await api.restoreBackup({
+              shops: [],
+              products: [],
+              orders: [],
+              categories: serverData.categories || localStore?.categories || [],
+              reps: serverData.reps || localStore?.reps || [],
+              customers: serverData.customers || localStore?.customers || []
+            });
+          }
         }
       }
     } catch (err) {
@@ -177,18 +239,15 @@ export default function App() {
 
   // Helper to check if an entity belongs to activeMainShop
   const isShopOwner = (itemShopId) => {
-    if (!activeMainShop) return false;
-    if (itemShopId === activeMainShop.id) return true;
-    // Legacy support: if entity has no shopId, only associate with the very first shop
-    if (!itemShopId && shops.length > 0 && activeMainShop.id === shops[0].id) return true;
-    return false;
+    if (!activeMainShop || !activeMainShop.id) return false;
+    return itemShopId === activeMainShop.id;
   };
 
   // Scoped Data for Active Main Shop (Complete Multi-Tenant Isolation for products and orders)
   const currentShopProducts = React.useMemo(() => {
     if (!activeMainShop) return [];
     return products.filter(p => isShopOwner(p.shopId));
-  }, [products, activeMainShop, shops]);
+  }, [products, activeMainShop]);
 
   // Delivery reps are shared globally across all importer shops
   const currentShopReps = React.useMemo(() => {
@@ -203,7 +262,7 @@ export default function App() {
   const currentShopOrders = React.useMemo(() => {
     if (!activeMainShop) return [];
     return orders.filter(o => isShopOwner(o.mainShopId));
-  }, [orders, activeMainShop, shops]);
+  }, [orders, activeMainShop]);
 
   // Compute Unread Notification Count (Cheques & Cash due soon + low stock items for active shop)
   const unreadNotificationsCount = React.useMemo(() => {
@@ -393,21 +452,29 @@ export default function App() {
 
   // Add / Delete Entities (Synced with localStorage and backend)
   const handleAddShop = async (shopData) => {
+    let shopId = shopData.id?.trim() || `MS-${Math.floor(1000 + Math.random() * 9000)}`;
+    if (shops.some(s => s.id === shopId)) {
+      shopId = `MS-${Math.floor(1000 + Math.random() * 9000)}`;
+    }
     const newShop = {
-      id: shopData.id || 'SHOP-' + Date.now().toString().slice(-4),
+      id: shopId,
       name: shopData.name,
       image: shopData.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60',
       createdAt: new Date().toISOString()
     };
-    const updated = [newShop, ...shops];
+    // Ensure any products that might coincidentally match this new shopId are wiped
+    const cleanProducts = products.filter(p => p.shopId !== shopId);
+    setProducts(cleanProducts);
+
+    const updated = [newShop, ...shops.filter(s => s.id !== shopId)];
     setShops(updated);
-    saveToLocalStorage({ shops: updated });
+    saveToLocalStorage({ shops: updated, products: cleanProducts });
     try {
-      const saved = await api.addShop(shopData);
+      const saved = await api.addShop({ ...shopData, id: shopId });
       if (saved && saved.id) {
-        const synced = updated.map((s, idx) => idx === 0 ? saved : s);
+        const synced = updated.map((s) => s.id === shopId ? saved : s);
         setShops(synced);
-        saveToLocalStorage({ shops: synced });
+        saveToLocalStorage({ shops: synced, products: cleanProducts });
       }
     } catch (err) {
       console.warn('Backend sync failed, saved locally', err);
@@ -415,30 +482,42 @@ export default function App() {
   };
 
   const handleDeleteShop = async (shopId) => {
-    const updated = shops.filter(s => s.id !== shopId);
-    setShops(updated);
-    const updatedProducts = products.filter(p => p.shopId !== shopId);
-    const updatedReps = reps.filter(r => r.shopId !== shopId);
-    const updatedCustomers = customers.filter(c => c.shopId !== shopId);
-    const updatedOrders = orders.filter(o => o.mainShopId !== shopId);
+    const remainingShops = shops.filter(s => s.id !== shopId);
+    setShops(remainingShops);
+
+    let updatedProducts = [];
+    let updatedOrders = [];
+    let updatedReps = reps.filter(r => r.shopId !== shopId);
+    let updatedCustomers = customers.filter(c => c.shopId !== shopId);
+
+    if (remainingShops.length > 0) {
+      const validShopIds = new Set(remainingShops.map(s => s.id));
+      // Delete all products belonging to deleted shop AND purge any orphaned products with no valid shop
+      updatedProducts = products.filter(p => p.shopId && p.shopId !== shopId && validShopIds.has(p.shopId));
+      updatedOrders = orders.filter(o => o.mainShopId && o.mainShopId !== shopId && validShopIds.has(o.mainShopId));
+    }
+
     setProducts(updatedProducts);
+    setOrders(updatedOrders);
     setReps(updatedReps);
     setCustomers(updatedCustomers);
-    setOrders(updatedOrders);
+
     saveToLocalStorage({ 
-      shops: updated, 
+      shops: remainingShops, 
       products: updatedProducts, 
+      orders: updatedOrders,
       reps: updatedReps, 
-      customers: updatedCustomers, 
-      orders: updatedOrders 
+      customers: updatedCustomers 
     });
-    if (activeMainShop?.id === shopId) {
+
+    if (activeMainShop?.id === shopId || remainingShops.length === 0) {
       setActiveMainShop(null);
       setActiveRep(null);
       setActiveCustomer(null);
       setSelectedItems({});
       setCurrentScreen('mainShops');
     }
+
     try {
       await api.deleteShop(shopId);
     } catch (err) {
@@ -579,7 +658,11 @@ export default function App() {
 
   // Products & Categories
   const handleAddProduct = async (productData) => {
-    const shopId = productData.shopId || activeMainShop?.id || '';
+    const shopId = productData.shopId || activeMainShop?.id || (shops.length > 0 ? shops[0].id : '');
+    if (!shopId) {
+      alert('Error: Please add or select an Importer Shop before adding products.');
+      return;
+    }
     const newProduct = {
       id: 'PRD-' + Date.now().toString().slice(-5),
       ...productData,
@@ -643,7 +726,11 @@ export default function App() {
   };
 
   const handleBulkAddProducts = async (newProductsList) => {
-    const shopId = activeMainShop?.id || '';
+    const shopId = activeMainShop?.id || (shops.length > 0 ? shops[0].id : '');
+    if (!shopId) {
+      alert('Error: Please add or select an Importer Shop before importing products.');
+      return { success: false, error: 'No active shop' };
+    }
     const productsWithShop = newProductsList.map(p => ({
       ...p,
       shopId: p.shopId || shopId
@@ -651,9 +738,11 @@ export default function App() {
     try {
       const res = await api.bulkAddProducts(productsWithShop);
       if (res && res.products) {
-        setProducts(res.products);
+        // Sanitize to only keep products with valid shops
+        const sanitized = sanitizeData({ shops, products: res.products }).products || [];
+        setProducts(sanitized);
         if (res.categories) setCategories(res.categories);
-        saveToLocalStorage({ products: res.products, categories: res.categories });
+        saveToLocalStorage({ products: sanitized, categories: res.categories });
         return { success: true, count: res.count };
       }
       throw new Error('Server returned invalid response');
@@ -913,6 +1002,7 @@ export default function App() {
             <ProductManagePage
               products={currentShopProducts}
               categories={categories}
+              activeMainShop={activeMainShop}
               onAddProduct={handleAddProduct}
               onUpdateProduct={handleUpdateProduct}
               onDeleteProduct={handleDeleteProduct}

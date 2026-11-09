@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Store, Plus, Search, MapPin, User, ArrowRight, Trash2, Image, Sparkles } from 'lucide-react';
+import { compressImage } from '../utils/imageHelper';
 
 export default function CustomerShopPage({ 
   customers, 
@@ -12,10 +13,13 @@ export default function CustomerShopPage({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formError, setFormError] = useState('');
+  
+  const generateNewCustomerId = () => `CUST-${Math.floor(100 + Math.random() * 900)}`;
+
   const [formData, setFormData] = useState({
     name: '',
     address: '',
-    id: `CUST-0${customers.length + 1}`,
+    id: generateNewCustomerId(),
     image: '', // optional as requested
     ownerName: '',
     phone: ''
@@ -27,14 +31,17 @@ export default function CustomerShopPage({
     { label: 'Cosmetics', url: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&auto=format&fit=crop&q=60' }
   ];
 
-  const handleImageFileChange = (e) => {
-    const file = e.target.files[0];
+  const handleImageFileChange = async (e) => {
+    const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, image: reader.result }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file, 600, 600, 0.7);
+        if (compressed) {
+          setFormData(prev => ({ ...prev, image: compressed }));
+        }
+      } catch (err) {
+        console.warn('Image compression error', err);
+      }
     }
   };
 
@@ -45,7 +52,7 @@ export default function CustomerShopPage({
       setFormError('Please enter Customer Shop Name before saving');
       return;
     }
-    const resolvedId = formData.id?.trim() || `CUST-0${customers.length + 1}`;
+    const resolvedId = formData.id?.trim() || generateNewCustomerId();
     onAddCustomer({ 
       ...formData, 
       id: resolvedId,
@@ -58,7 +65,7 @@ export default function CustomerShopPage({
     setFormData({
       name: '',
       address: '',
-      id: `CUST-0${customers.length + 2}`,
+      id: generateNewCustomerId(),
       image: '',
       ownerName: '',
       phone: ''

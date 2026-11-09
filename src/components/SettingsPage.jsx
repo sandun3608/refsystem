@@ -257,10 +257,10 @@ export default function SettingsPage({
                   </div>
                 </div>
 
-                {shops.length > 1 && (
+                {onDeleteShop && (
                   <button
                     onClick={() => {
-                      if (confirm(`Delete main shop "${shop.name}"?`)) {
+                      if (confirm(`Delete main shop "${shop.name}"?\nAll products and orders belonging to this shop will also be permanently deleted!`)) {
                         onDeleteShop(shop.id);
                       }
                     }}
