@@ -902,43 +902,26 @@ export default function ProductManagePage({
                   </span>
                 </div>
               </div>
-
-              {/* Quick cosmetic preset chips */}
-              <div>
-                <span className="text-[10px] text-slate-400 font-medium block mb-1.5">Quick Presets:</span>
-                <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                  {[
-                    { name: 'Lipstick', url: 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400&auto=format&fit=crop&q=60' },
-                    { name: 'Serum', url: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&auto=format&fit=crop&q=60' },
-                    { name: 'Mascara', url: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=400&auto=format&fit=crop&q=60' },
-                    { name: 'Cream', url: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60' },
-                    { name: 'Perfume', url: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=400&auto=format&fit=crop&q=60' }
-                  ].map((preset) => (
-                    <button
-                      key={preset.name}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, image: preset.url })}
-                      className={`flex-shrink-0 px-2.5 py-1.5 rounded-xl text-[10px] font-bold border transition-all ${
-                        formData.image === preset.url
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
-                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      {preset.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
 
           </div>
 
-          {/* Locked Bottom Action Bar - Solid, Immobile */}
-          <div className="flex-shrink-0 p-3 bg-white border-t border-slate-200 safe-bottom">
+          {/* Bottom Action Bar */}
+          <div className="flex-shrink-0 p-3 bg-white border-t border-slate-200 flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setFormError('');
+                setIsAddModalOpen(false);
+              }}
+              className="w-1/3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl active:scale-95 transition-all"
+            >
+              Cancel
+            </button>
             <button
               type="button"
               onClick={handleSaveAdd}
-              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-2xl shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2"
+              className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5"
             >
               <Check className="w-4 h-4 stroke-[2.5]" />
               <span>Save to Inventory</span>
@@ -1144,43 +1127,26 @@ export default function ProductManagePage({
                   </span>
                 </div>
               </div>
-
-              {/* Quick cosmetic preset chips */}
-              <div>
-                <span className="text-[10px] text-slate-400 font-medium block mb-1.5">Quick Presets:</span>
-                <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                  {[
-                    { name: 'Lipstick', url: 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400&auto=format&fit=crop&q=60' },
-                    { name: 'Serum', url: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&auto=format&fit=crop&q=60' },
-                    { name: 'Mascara', url: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=400&auto=format&fit=crop&q=60' },
-                    { name: 'Cream', url: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60' },
-                    { name: 'Perfume', url: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=400&auto=format&fit=crop&q=60' }
-                  ].map((preset) => (
-                    <button
-                      key={preset.name}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, image: preset.url })}
-                      className={`flex-shrink-0 px-2.5 py-1.5 rounded-xl text-[10px] font-bold border transition-all ${
-                        formData.image === preset.url
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
-                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      {preset.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
 
           </div>
 
-          {/* Locked Bottom Action Bar */}
-          <div className="flex-shrink-0 p-3 bg-white border-t border-slate-200 safe-bottom">
+          {/* Bottom Action Bar */}
+          <div className="flex-shrink-0 p-3 bg-white border-t border-slate-200 flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setFormError('');
+                setIsEditModalOpen(false);
+              }}
+              className="w-1/3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl active:scale-95 transition-all"
+            >
+              Cancel
+            </button>
             <button
               type="button"
               onClick={handleSaveEdit}
-              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-2xl shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2"
+              className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5"
             >
               <Check className="w-4 h-4 stroke-[2.5]" />
               <span>Update Product Details</span>
