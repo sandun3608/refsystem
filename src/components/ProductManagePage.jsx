@@ -20,7 +20,9 @@ import {
   CheckCircle2,
   Camera,
   Upload,
-  ArrowLeft
+  ArrowLeft,
+  Lock,
+  Sparkles
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -51,6 +53,16 @@ export default function ProductManagePage({
   const [isImporting, setIsImporting] = useState(false);
   const [importFeedback, setImportFeedback] = useState(null);
   const [formError, setFormError] = useState('');
+
+  // Batch-wise Stock Intake state for Edit Modal
+  const [isAddingNewBatch, setIsAddingNewBatch] = useState(false);
+  const [newBatchData, setNewBatchData] = useState({
+    batchId: '',
+    stockQty: '',
+    salePrice: '',
+    costPrice: '',
+    expiryDate: ''
+  });
   
   // Category search inside category modal
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
@@ -325,6 +337,14 @@ export default function ProductManagePage({
       image: product.image || '',
       expiryDate: product.expiryDate || ''
     });
+    setIsAddingNewBatch(false);
+    setNewBatchData({
+      batchId: `BATCH-2026-${Math.floor(100 + Math.random() * 900)}`,
+      stockQty: '',
+      salePrice: product.salePrice || '',
+      costPrice: product.costPrice || '',
+      expiryDate: product.expiryDate || '2029-12-31'
+    });
     setIsEditModalOpen(true);
   };
 
@@ -370,28 +390,84 @@ export default function ProductManagePage({
       setFormError('Please enter a product name');
       return;
     }
-    if (!formData.salePrice || Number(formData.salePrice) <= 0) {
-      setFormError('Please enter a valid sale price (e.g. 1500)');
-      return;
-    }
     if (!editingProductId) return;
 
-    const payload = {
-      ...formData,
-      name: formData.name.trim(),
-      brand: formData.brand || categories[0] || 'General',
-      costPrice: Number(formData.costPrice) || 0,
-      salePrice: Number(formData.salePrice) || 0,
-      stock: Number(formData.stock) || 0,
-      lowStockThreshold: Number(formData.lowStockThreshold) || 10,
-      batchId: formData.batchId || '',
-      expiryDate: formData.expiryDate || '',
-      image: formData.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60'
-    };
+    let payload;
+
+    if (isAddingNewBatch) {
+      if (!newBatchData.batchId || !newBatchData.batchId.trim()) {
+        setFormError('Please enter a new batch number');
+        return;
+      }
+      if (!newBatchData.stockQty || Number(newBatchData.stockQty) <= 0) {
+        setFormError('Please enter the new stock quantity to add (greater than 0)');
+        return;
+      }
+      if (!newBatchData.salePrice || Number(newBatchData.salePrice) <= 0) {
+        setFormError('Please enter a valid sale price for the new batch');
+        return;
+      }
+
+      const addedQty = Number(newBatchData.stockQty) || 0;
+      const totalNewStock = Number(formData.stock || 0) + addedQty;
+
+      const currentProd = products.find(p => p.id === editingProductId);
+      const existingBatches = currentProd?.batches || [
+        {
+          batchId: formData.batchId || 'BATCH-INITIAL',
+          stockAdded: Number(formData.stock) || 0,
+          costPrice: Number(formData.costPrice) || 0,
+          salePrice: Number(formData.salePrice) || 0,
+          expiryDate: formData.expiryDate || '',
+          addedAt: currentProd?.createdAt || new Date().toISOString()
+        }
+      ];
+
+      const newBatchEntry = {
+        batchId: newBatchData.batchId.trim(),
+        stockAdded: addedQty,
+        costPrice: Number(newBatchData.costPrice) || 0,
+        salePrice: Number(newBatchData.salePrice) || 0,
+        expiryDate: newBatchData.expiryDate || '',
+        addedAt: new Date().toISOString()
+      };
+
+      payload = {
+        ...formData,
+        name: formData.name.trim(),
+        brand: formData.brand || categories[0] || 'General',
+        stock: totalNewStock,
+        salePrice: Number(newBatchData.salePrice),
+        costPrice: Number(newBatchData.costPrice) || 0,
+        batchId: newBatchData.batchId.trim(),
+        expiryDate: newBatchData.expiryDate || formData.expiryDate || '',
+        image: formData.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60',
+        batches: [...existingBatches, newBatchEntry]
+      };
+    } else {
+      if (!formData.salePrice || Number(formData.salePrice) <= 0) {
+        setFormError('Please enter a valid sale price (e.g. 1500)');
+        return;
+      }
+
+      payload = {
+        ...formData,
+        name: formData.name.trim(),
+        brand: formData.brand || categories[0] || 'General',
+        costPrice: Number(formData.costPrice) || 0,
+        salePrice: Number(formData.salePrice) || 0,
+        stock: Number(formData.stock) || 0,
+        lowStockThreshold: Number(formData.lowStockThreshold) || 10,
+        batchId: formData.batchId || '',
+        expiryDate: formData.expiryDate || '',
+        image: formData.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60'
+      };
+    }
 
     onUpdateProduct(editingProductId, payload);
     setIsEditModalOpen(false);
     setEditingProductId(null);
+    setIsAddingNewBatch(false);
     setFormError('');
   };
 
@@ -1011,44 +1087,134 @@ export default function ProductManagePage({
               </div>
             </div>
 
-            {/* CARD 2: Pricing & Stock */}
-            <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
-              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
-                2. Pricing & Quantities
+            {/* Add New Stock / Batch Intake Toggle ("product eka edit walata gihama tick mark ekk danna tiyenna ona add new stock kiyala") */}
+            <div 
+              onClick={() => {
+                const next = !isAddingNewBatch;
+                setIsAddingNewBatch(next);
+                if (next && !newBatchData.salePrice) {
+                  setNewBatchData(prev => ({
+                    ...prev,
+                    salePrice: formData.salePrice || '',
+                    costPrice: formData.costPrice || ''
+                  }));
+                }
+              }}
+              className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between select-none active:scale-[0.99] ${
+                isAddingNewBatch 
+                  ? 'border-blue-600 bg-blue-50/70 shadow-sm ring-2 ring-blue-100' 
+                  : 'border-slate-200 bg-white hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 transition-all flex-shrink-0 ${
+                    isAddingNewBatch 
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-xs' 
+                      : 'border-slate-300 bg-slate-50'
+                  }`}
+                >
+                  {isAddingNewBatch && <Check className="w-4 h-4 stroke-[3]" />}
+                </button>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black text-slate-900">Add New Stock / Batch (නව තොග එකතු කිරීම)</span>
+                    {isAddingNewBatch && <Sparkles className="w-3.5 h-3.5 text-blue-600 fill-blue-500" />}
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                    Tick to record a new batch intake with separate quantity, prices & expiry
+                  </p>
+                </div>
+              </div>
+
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0 ${
+                isAddingNewBatch
+                  ? 'bg-blue-600 text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-500'
+              }`}>
+                {isAddingNewBatch ? 'New Batch' : 'Regular'}
               </span>
+            </div>
+
+            {/* CARD 2: Pricing & Stock (LOCKED when adding new batch) */}
+            <div className={`p-3.5 rounded-2xl border transition-all space-y-3 ${
+              isAddingNewBatch 
+                ? 'bg-slate-50/80 border-slate-300/80 opacity-90' 
+                : 'bg-white border-slate-200/80 shadow-2xs'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 text-slate-500">
+                  {isAddingNewBatch && <Lock className="w-3.5 h-3.5 text-amber-600" />}
+                  <span>{isAddingNewBatch ? '2. Existing Batch & Pricing (Locked 🔒)' : '2. Pricing & Quantities'}</span>
+                </span>
+                {isAddingNewBatch && (
+                  <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                    Locked for History
+                  </span>
+                )}
+              </div>
+
+              {isAddingNewBatch && (
+                <div className="p-2.5 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-semibold rounded-xl flex items-center gap-2">
+                  <Lock className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                  <span>Previous batch stock and prices are locked to prevent accidental overwrite.</span>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="text-xs font-bold text-blue-700 block mb-1">Sale Price (Rs.) *</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    {isAddingNewBatch ? 'Current Sale Price (Rs.)' : 'Sale Price (Rs.) *'}
+                  </label>
                   <input
                     type="number"
+                    disabled={isAddingNewBatch}
                     value={formData.salePrice}
                     onChange={(e) => {
                       setFormData({ ...formData, salePrice: e.target.value });
                       if (formError) setFormError('');
                     }}
-                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-blue-50/40 border border-blue-200 rounded-xl outline-none font-bold text-blue-700 focus:bg-white"
+                    className={`w-full px-3.5 py-2.5 text-[16px] sm:text-xs rounded-xl outline-none font-bold ${
+                      isAddingNewBatch 
+                        ? 'bg-slate-100 text-slate-500 cursor-not-allowed border border-dashed border-slate-300' 
+                        : 'bg-blue-50/40 border border-blue-200 text-blue-700 focus:bg-white'
+                    }`}
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Cost Price (Rs.)</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    {isAddingNewBatch ? 'Current Cost Price (Rs.)' : 'Cost Price (Rs.)'}
+                  </label>
                   <input
                     type="number"
+                    disabled={isAddingNewBatch}
                     value={formData.costPrice}
                     onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
-                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-900"
+                    className={`w-full px-3.5 py-2.5 text-[16px] sm:text-xs rounded-xl outline-none font-medium ${
+                      isAddingNewBatch 
+                        ? 'bg-slate-100 text-slate-500 cursor-not-allowed border border-dashed border-slate-300' 
+                        : 'bg-slate-50 border border-slate-200 text-slate-900'
+                    }`}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Current Stock</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    {isAddingNewBatch ? 'Current Stock in Inventory' : 'Current Stock'}
+                  </label>
                   <input
                     type="number"
+                    disabled={isAddingNewBatch}
                     value={formData.stock}
                     onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-900"
+                    className={`w-full px-3.5 py-2.5 text-[16px] sm:text-xs rounded-xl outline-none font-medium ${
+                      isAddingNewBatch 
+                        ? 'bg-slate-100 text-slate-500 cursor-not-allowed border border-dashed border-slate-300' 
+                        : 'bg-slate-50 border border-slate-200 text-slate-900'
+                    }`}
                   />
                 </div>
                 <div>
@@ -1063,33 +1229,162 @@ export default function ProductManagePage({
               </div>
             </div>
 
-            {/* CARD 3: Batch & Expiry */}
-            <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
-              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
-                3. Batch & Expiry Date
-              </span>
+            {/* CARD 3: Batch & Expiry (LOCKED when adding new batch) */}
+            <div className={`p-3.5 rounded-2xl border transition-all space-y-3 ${
+              isAddingNewBatch 
+                ? 'bg-slate-50/80 border-slate-300/80 opacity-90' 
+                : 'bg-white border-slate-200/80 shadow-2xs'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 text-slate-500">
+                  {isAddingNewBatch && <Lock className="w-3.5 h-3.5 text-amber-600" />}
+                  <span>{isAddingNewBatch ? '3. Existing Batch Code & Expiry (Locked 🔒)' : '3. Batch & Expiry Date'}</span>
+                </span>
+              </div>
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">Batch ID</label>
                   <input
                     type="text"
+                    disabled={isAddingNewBatch}
                     value={formData.batchId}
                     onChange={(e) => setFormData({ ...formData, batchId: e.target.value })}
-                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-900"
+                    className={`w-full px-3.5 py-2.5 text-[16px] sm:text-xs rounded-xl outline-none font-medium ${
+                      isAddingNewBatch 
+                        ? 'bg-slate-100 text-slate-500 cursor-not-allowed border border-dashed border-slate-300' 
+                        : 'bg-slate-50 border border-slate-200 text-slate-900'
+                    }`}
                   />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">Expiry Date</label>
                   <input
                     type="date"
+                    disabled={isAddingNewBatch}
                     value={formData.expiryDate}
                     onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-900"
+                    className={`w-full px-3.5 py-2.5 text-[16px] sm:text-xs rounded-xl outline-none font-medium ${
+                      isAddingNewBatch 
+                        ? 'bg-slate-100 text-slate-500 cursor-not-allowed border border-dashed border-slate-300' 
+                        : 'bg-slate-50 border border-slate-200 text-slate-900'
+                    }`}
                   />
                 </div>
               </div>
             </div>
+
+            {/* CARD 3B: NEW BATCH STOCK INTAKE (Appears when Add New Stock is checked) */}
+            {isAddingNewBatch && (
+              <div className="bg-gradient-to-br from-blue-50/90 via-indigo-50/40 to-blue-50/90 p-4 rounded-2xl border-2 border-blue-400 shadow-md space-y-3.5 animate-in slide-in-from-top-3 duration-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                      <Plus className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-blue-900 block">
+                        New Batch Stock Intake (නව තොගය)
+                      </span>
+                      <span className="text-[10px] text-blue-700 font-medium">
+                        Set new batch ID, incoming quantity, prices & expiry
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-black bg-blue-600 text-white px-2 py-0.5 rounded-full uppercase">
+                    Active Intake
+                  </span>
+                </div>
+
+                {/* New Batch ID */}
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    New Batch Number / ID *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newBatchData.batchId}
+                    onChange={(e) => setNewBatchData({ ...newBatchData, batchId: e.target.value })}
+                    placeholder="e.g. BATCH-2026-02"
+                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-white border border-blue-300 rounded-xl outline-none font-bold text-blue-900 shadow-2xs focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+
+                {/* New Stock Quantity to Add */}
+                <div className="bg-white p-3 rounded-xl border border-blue-200/90 space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-slate-800">
+                      New Stock Quantity to Add *
+                    </label>
+                    <span className="text-[11px] font-extrabold text-blue-700">
+                      Existing: {formData.stock} pcs
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    placeholder="e.g. 50"
+                    value={newBatchData.stockQty}
+                    onChange={(e) => setNewBatchData({ ...newBatchData, stockQty: e.target.value })}
+                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-blue-50/50 border border-blue-300 rounded-xl outline-none font-black text-blue-900"
+                  />
+                  {Number(newBatchData.stockQty) > 0 && (
+                    <div className="flex items-center justify-between text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                      <span>Total Stock After Intake:</span>
+                      <span className="font-black text-xs">
+                        {Number(formData.stock || 0) + Number(newBatchData.stockQty)} pcs
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* New Price Set (Sale Price & Cost Price) */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-xs font-bold text-blue-800 block mb-1">
+                      New Sale Price (Rs.) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      placeholder="e.g. 1650"
+                      value={newBatchData.salePrice}
+                      onChange={(e) => setNewBatchData({ ...newBatchData, salePrice: e.target.value })}
+                      className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-white border border-blue-300 rounded-xl outline-none font-bold text-blue-800 shadow-2xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      New Cost Price (Rs.)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 1100"
+                      value={newBatchData.costPrice}
+                      onChange={(e) => setNewBatchData({ ...newBatchData, costPrice: e.target.value })}
+                      className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-white border border-slate-300 rounded-xl outline-none font-medium text-slate-900 shadow-2xs"
+                    />
+                  </div>
+                </div>
+
+                {/* New Expiry Date */}
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    New Batch Expiry Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={newBatchData.expiryDate}
+                    onChange={(e) => setNewBatchData({ ...newBatchData, expiryDate: e.target.value })}
+                    className="w-full max-w-full box-border min-w-0 px-3.5 py-2.5 text-[16px] sm:text-xs bg-white border border-blue-300 rounded-xl outline-none font-bold text-slate-800 shadow-2xs"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* CARD 4: Product Image */}
             <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
