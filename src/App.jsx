@@ -742,6 +742,7 @@ export default function App() {
               onUpdateQuantity={handleUpdateQuantity}
               onUpdateItemDiscount={handleUpdateItemDiscount}
               onCreateOrder={handleGoToCheckout}
+              onClearSelected={() => setSelectedItems({})}
               activeCustomer={activeCustomer}
               activeRep={activeRep}
               activeMainShop={activeMainShop}
@@ -851,8 +852,8 @@ export default function App() {
           </div>
         )}
 
-        {/* Modern Frosted Glass 5-Icon Bottom Tab Bar (hidden during Checkout to prevent blocking Order buttons) */}
-        {currentScreen !== 'checkout' && (
+        {/* Modern Frosted Glass 5-Icon Bottom Tab Bar (hidden during Checkout or when items are selected on Dashboard) */}
+        {currentScreen !== 'checkout' && !(currentScreen === 'dashboard' && Object.keys(selectedItems).length > 0) && (
           <BottomNav
             currentScreen={currentScreen}
             onNavigate={(screenId) => {

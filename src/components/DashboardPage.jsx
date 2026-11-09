@@ -20,6 +20,7 @@ export default function DashboardPage({
   onUpdateQuantity,
   onUpdateItemDiscount,
   onCreateOrder,
+  onClearSelected,
   activeCustomer,
   activeRep,
   activeMainShop,
@@ -52,7 +53,7 @@ export default function DashboardPage({
   }, 0);
 
   return (
-    <div className={`px-3 pt-2 space-y-3 ${selectedCount > 0 ? 'pb-48' : 'pb-28'}`}>
+    <div className="px-3 pt-2 space-y-3 pb-28">
       
       {/* Session Breadcrumb Pill */}
       {activeCustomer ? (
@@ -284,22 +285,35 @@ export default function DashboardPage({
         )}
       </div>
 
-      {/* Floating Sticky Bottom Bar: "Create Order" (when at least 1 item is ticked) */}
+      {/* Floating Bottom Bar: "Create Order" (replaces 5-icon BottomNav at the very bottom when items are selected) */}
       {selectedCount > 0 && (
-        <div className="fixed bottom-[74px] inset-x-2.5 z-50 max-w-md mx-auto pointer-events-none animate-in slide-in-from-bottom-5 duration-200">
-          <div className="pointer-events-auto bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white p-3 rounded-2xl shadow-[0_12px_32px_-4px_rgba(37,99,235,0.45)] border border-blue-400/50 flex items-center justify-between backdrop-blur-xl">
-            <div className="pl-1">
-              <div className="flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-white text-blue-700 text-xs font-black flex items-center justify-center shadow-xs">
-                  {selectedCount}
-                </span>
-                <span className="text-xs font-extrabold text-blue-100">
-                  {selectedCount === 1 ? 'Item Selected' : 'Items Selected'}
-                </span>
+        <div className="fixed bottom-2.5 inset-x-2.5 z-40 max-w-md mx-auto pointer-events-none safe-bottom animate-in slide-in-from-bottom-3 duration-200">
+          <div className="pointer-events-auto bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white px-4 py-3 rounded-2xl md:rounded-3xl shadow-[0_12px_35px_-8px_rgba(37,99,235,0.45)] border border-blue-400/50 flex items-center justify-between backdrop-blur-xl">
+            <div className="flex items-center gap-2">
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-white text-blue-700 text-xs font-black flex items-center justify-center shadow-xs">
+                    {selectedCount}
+                  </span>
+                  <span className="text-xs font-extrabold text-blue-100">
+                    {selectedCount === 1 ? 'Item Selected' : 'Items Selected'}
+                  </span>
+                </div>
+                <p className="text-sm font-black text-white mt-0.5 tracking-tight">
+                  Rs. {Math.round(selectedTotal).toLocaleString()}
+                </p>
               </div>
-              <p className="text-sm font-black text-white mt-0.5 tracking-tight">
-                Rs. {Math.round(selectedTotal).toLocaleString()}
-              </p>
+
+              {onClearSelected && (
+                <button
+                  type="button"
+                  onClick={onClearSelected}
+                  className="ml-2 text-[10px] font-bold text-blue-200 hover:text-white bg-white/10 hover:bg-white/20 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                  title="Clear selection"
+                >
+                  Clear
+                </button>
+              )}
             </div>
 
             <button
