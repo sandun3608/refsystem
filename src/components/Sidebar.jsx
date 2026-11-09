@@ -119,8 +119,8 @@ export default function Sidebar({
           })}
         </div>
 
-        {/* Bottom Profile / Identity Section (Visible only when home page / active distribution session is reached) */}
-        {!['mainShops', 'reps', 'customers'].includes(currentScreen) && activeMainShop && activeRep && activeCustomer && (
+        {/* Bottom Profile / Identity Section (Visible ONLY when on Dashboard / Home Page during an active session) */}
+        {['dashboard', 'checkout', 'shopDetails'].includes(currentScreen) && activeMainShop && activeRep && activeCustomer && (
           <div className="p-3.5 border-t border-slate-100 bg-slate-50/70">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2.5 px-1">
               Active Session Context

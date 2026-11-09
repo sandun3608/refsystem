@@ -56,17 +56,6 @@ export default function App() {
         setCategories(data.categories || []);
         setProducts(data.products || []);
         setOrders(data.orders || []);
-
-        // Default active selections if available
-        if (data.shops?.length > 0 && !activeMainShop) {
-          setActiveMainShop(data.shops[0]);
-        }
-        if (data.reps?.length > 0 && !activeRep) {
-          setActiveRep(data.reps[0]);
-        }
-        if (data.customers?.length > 0 && !activeCustomer) {
-          setActiveCustomer(data.customers[0]);
-        }
       }
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -340,6 +329,9 @@ export default function App() {
 
   // Log Out / Reset to Step 1 (Main Shops)
   const handleLogout = () => {
+    setActiveMainShop(null);
+    setActiveRep(null);
+    setActiveCustomer(null);
     setSelectedItems({});
     setCurrentScreen('mainShops');
   };
