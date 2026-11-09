@@ -13,7 +13,9 @@ import {
   Layers, 
   Tag, 
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Check,
+  Clock
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -33,7 +35,13 @@ export default function CheckoutPage({
 
   const [batchNumber, setBatchNumber] = useState(defaultBatch);
   const [overallDiscount, setOverallDiscount] = useState(0); // in Rupees
+  
+  // Instant Pay: Customer paid today immediately -> no need to choose cash/cheque/dates!
+  const [isInstantPay, setIsInstantPay] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Cash'); // Cash or Cheque
+  const [cashDueDate, setCashDueDate] = useState(
+    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // default 1 week
+  );
   const [chequeDetails, setChequeDetails] = useState({
     chequeNumber: '',
     bankName: 'Commercial Bank',
@@ -82,6 +90,11 @@ export default function CheckoutPage({
       // ignore
     }
 
+    const resolvedPaymentMethod = isInstantPay ? 'Instant Pay' : paymentMethod;
+    const resolvedDueDate = isInstantPay 
+      ? null 
+      : (paymentMethod === 'Cheque' ? chequeDetails.chequeDate : cashDueDate);
+
     const orderPayload = {
       mainShopId: activeMainShop?.id || 'MS001',
       mainShopName: activeMainShop?.name || 'Main Shop',
@@ -95,8 +108,12 @@ export default function CheckoutPage({
       subtotal,
       overallDiscount: Number(overallDiscount) || 0,
       netTotal: finalTotal,
-      paymentMethod,
-      chequeDetails: paymentMethod === 'Cheque' ? chequeDetails : null,
+      isInstantPay: Boolean(isInstantPay),
+      paymentMethod: resolvedPaymentMethod,
+      paymentStatus: isInstantPay ? 'Paid' : 'Pending',
+      paymentDueDate: resolvedDueDate,
+      cashDueDate: !isInstantPay && paymentMethod === 'Cash' ? cashDueDate : null,
+      chequeDetails: !isInstantPay && paymentMethod === 'Cheque' ? chequeDetails : null,
       deliveryDate,
       status: 'Processing',
       orderDate: new Date().toISOString()
@@ -238,102 +255,201 @@ export default function CheckoutPage({
         />
       </div>
 
-      {/* Payment Method Option: Cash vs Cheque */}
-      <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-3">
-        <label className="text-xs font-bold text-slate-700 block">
-          Payment Method <span className="text-red-500">*</span>
+      {/* Payment Method Section with Instant Pay Tick Mark */}
+      <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-3 overflow-hidden">
+        <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+          <span className="flex items-center gap-1.5">
+            <Banknote className="w-4 h-4 text-blue-600" />
+            <span>Payment Method</span>
+            <span className="text-red-500">*</span>
+          </span>
+          <span className="text-[10px] text-slate-400 font-medium">Select terms</span>
         </label>
         
-        <div className="grid grid-cols-2 gap-2">
-          {/* Cash */}
-          <button
-            type="button"
-            onClick={() => setPaymentMethod('Cash')}
-            className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 font-bold text-xs transition-all ${
-              paymentMethod === 'Cash'
-                ? 'border-emerald-500 bg-emerald-50/70 text-emerald-800 shadow-xs'
-                : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            <Banknote className="w-4 h-4 text-emerald-600" />
-            <span>Cash Payment</span>
-          </button>
+        {/* Instant Pay Tick Mark Option ("eke uda tick mark danna instant pay kiyala. eken kiyawanne adama geuwa kiyala") */}
+        <div 
+          onClick={() => setIsInstantPay(!isInstantPay)}
+          className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between select-none active:scale-[0.99] ${
+            isInstantPay 
+              ? 'border-emerald-500 bg-emerald-50/70 shadow-xs ring-2 ring-emerald-100' 
+              : 'border-slate-200 bg-slate-50/70 hover:border-slate-300 hover:bg-slate-50'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 transition-all flex-shrink-0 ${
+                isInstantPay 
+                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs' 
+                  : 'border-slate-300 bg-white'
+              }`}
+            >
+              {isInstantPay && <Check className="w-4 h-4 stroke-[3]" />}
+            </button>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black text-slate-900">Instant Pay (අදම ගෙවීම් කළා)</span>
+                {isInstantPay && <Sparkles className="w-3.5 h-3.5 text-emerald-600 fill-emerald-500" />}
+              </div>
+              <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                Paid in full today — no delayed due date or payment options needed
+              </p>
+            </div>
+          </div>
 
-          {/* Cheque */}
-          <button
-            type="button"
-            onClick={() => setPaymentMethod('Cheque')}
-            className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 font-bold text-xs transition-all ${
-              paymentMethod === 'Cheque'
-                ? 'border-blue-600 bg-blue-50/70 text-blue-800 shadow-xs'
-                : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            <CreditCard className="w-4 h-4 text-blue-600" />
-            <span>Cheque Payment</span>
-          </button>
+          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0 ${
+            isInstantPay
+              ? 'bg-emerald-600 text-white shadow-2xs'
+              : 'bg-slate-200/80 text-slate-500'
+          }`}>
+            {isInstantPay ? 'Settled' : 'Not Yet'}
+          </span>
         </div>
 
-        {/* If Cheque selected: Cheque input details with date notification trigger */}
-        {paymentMethod === 'Cheque' && (
-          <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-200 space-y-2.5 animate-in fade-in duration-200">
-            <span className="text-[10px] font-bold text-blue-800 uppercase tracking-wider block">
-              Cheque Information & Due Date
+        {/* If Instant Pay is CHECKED: Confirms payment is settled, no extra inputs */}
+        {isInstantPay ? (
+          <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center gap-2.5 animate-in fade-in duration-200">
+            <div className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 shadow-2xs">
+              <Check className="w-4 h-4 stroke-[3]" />
+            </div>
+            <div>
+              <p className="text-xs font-black text-emerald-900">Payment Settled in Full Today</p>
+              <p className="text-[10px] text-emerald-700">Order will be saved as completed with immediate receipt.</p>
+            </div>
+          </div>
+        ) : (
+          /* If Instant Pay is UNCHECKED: Choose Cash or Cheque */
+          <div className="space-y-3 animate-in fade-in duration-200">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              Delayed / Scheduled Payment Method
             </span>
 
             <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[10px] font-bold text-slate-600 block mb-1">Cheque Number</label>
-                <input
-                  type="text"
-                  placeholder="e.g. CHQ-78601"
-                  value={chequeDetails.chequeNumber}
-                  onChange={(e) => setChequeDetails({ ...chequeDetails, chequeNumber: e.target.value })}
-                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none"
-                />
-              </div>
+              {/* Cash */}
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('Cash')}
+                className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 font-bold text-xs transition-all ${
+                  paymentMethod === 'Cash'
+                    ? 'border-emerald-500 bg-emerald-50/70 text-emerald-800 shadow-xs'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Banknote className="w-4 h-4 text-emerald-600" />
+                <span>Cash Payment</span>
+              </button>
 
-              <div>
-                <label className="text-[10px] font-bold text-slate-600 block mb-1">Bank Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Commercial Bank"
-                  value={chequeDetails.bankName}
-                  onChange={(e) => setChequeDetails({ ...chequeDetails, bankName: e.target.value })}
-                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none"
-                />
-              </div>
+              {/* Cheque */}
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('Cheque')}
+                className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 font-bold text-xs transition-all ${
+                  paymentMethod === 'Cheque'
+                    ? 'border-blue-600 bg-blue-50/70 text-blue-800 shadow-xs'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <CreditCard className="w-4 h-4 text-blue-600" />
+                <span>Cheque Payment</span>
+              </button>
             </div>
 
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 block mb-1">
-                Cheque Clearance / Due Date (Triggers Notifications)
-              </label>
-              <input
-                type="date"
-                required
-                value={chequeDetails.chequeDate}
-                onChange={(e) => setChequeDetails({ ...chequeDetails, chequeDate: e.target.value })}
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none font-semibold text-slate-800"
-              />
-            </div>
+            {/* If Cash selected: Select Cash Payment Due Date ("ehema natnm cash daddith kawadda eya gewanne kiyala dinayak select karanna ona") */}
+            {paymentMethod === 'Cash' && (
+              <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200 space-y-2 animate-in fade-in duration-200 overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-emerald-600" />
+                    <span>Cash Payment Due Date (කවද්ද සල්ලි දෙන්නේ)</span>
+                  </span>
+                  <span className="text-[9px] bg-emerald-600 text-white font-extrabold px-1.5 py-0.2 rounded-md">
+                    Triggers Alert
+                  </span>
+                </div>
+
+                <div className="w-full min-w-0">
+                  <input
+                    type="date"
+                    required
+                    value={cashDueDate}
+                    onChange={(e) => setCashDueDate(e.target.value)}
+                    className="w-full max-w-full box-border min-w-0 text-[16px] sm:text-xs bg-white border border-emerald-200 rounded-xl px-3 py-2 outline-none font-bold text-slate-800 shadow-2xs"
+                  />
+                </div>
+                <p className="text-[10px] text-emerald-700 font-medium">
+                  🔔 Notifications will trigger in the app when this payment collection date arrives.
+                </p>
+              </div>
+            )}
+
+            {/* If Cheque selected: Cheque input details with date notification trigger (Fixed date row overflow!) */}
+            {paymentMethod === 'Cheque' && (
+              <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-200 space-y-2.5 animate-in fade-in duration-200 overflow-hidden">
+                <span className="text-[10px] font-bold text-blue-800 uppercase tracking-wider block">
+                  Cheque Information & Due Date
+                </span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="min-w-0">
+                    <label className="text-[10px] font-bold text-slate-600 block mb-1">Cheque Number</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. CHQ-78601"
+                      value={chequeDetails.chequeNumber}
+                      onChange={(e) => setChequeDetails({ ...chequeDetails, chequeNumber: e.target.value })}
+                      className="w-full max-w-full box-border min-w-0 px-3 py-2 text-[16px] sm:text-xs bg-white border border-slate-200 rounded-xl outline-none font-medium"
+                    />
+                  </div>
+
+                  <div className="min-w-0">
+                    <label className="text-[10px] font-bold text-slate-600 block mb-1">Bank Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Commercial Bank"
+                      value={chequeDetails.bankName}
+                      onChange={(e) => setChequeDetails({ ...chequeDetails, bankName: e.target.value })}
+                      className="w-full max-w-full box-border min-w-0 px-3 py-2 text-[16px] sm:text-xs bg-white border border-slate-200 rounded-xl outline-none font-medium"
+                    />
+                  </div>
+                </div>
+
+                {/* Date Row - Fixed: box-border min-w-0 max-w-full ensures it never overflows container! */}
+                <div className="w-full min-w-0">
+                  <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                    Cheque Clearance / Due Date (Triggers Notifications)
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={chequeDetails.chequeDate}
+                    onChange={(e) => setChequeDetails({ ...chequeDetails, chequeDate: e.target.value })}
+                    className="w-full max-w-full box-border min-w-0 px-3 py-2 text-[16px] sm:text-xs bg-white border border-blue-200 rounded-xl outline-none font-bold text-slate-800 shadow-2xs"
+                  />
+                </div>
+                <p className="text-[10px] text-blue-600 font-medium">
+                  🔔 Notifications will trigger 3 days prior to cheque deposit date.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Required Delivery Date ("order eka genna one kawadda kiyala dinekuth danna ona") */}
-      <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+      {/* Required Delivery Date */}
+      <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-2 overflow-hidden">
         <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
           <Calendar className="w-3.5 h-3.5 text-blue-600" />
           <span>Target Delivery Date</span>
         </label>
-        <input
-          type="date"
-          required
-          value={deliveryDate}
-          onChange={(e) => setDeliveryDate(e.target.value)}
-          className="w-full px-3.5 py-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none"
-        />
+        <div className="w-full min-w-0">
+          <input
+            type="date"
+            required
+            value={deliveryDate}
+            onChange={(e) => setDeliveryDate(e.target.value)}
+            className="w-full max-w-full box-border min-w-0 px-3.5 py-2 text-[16px] sm:text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none"
+          />
+        </div>
       </div>
 
       {/* Final Bill Calculation Card */}
@@ -351,7 +467,7 @@ export default function CheckoutPage({
         <div className="border-t border-slate-800 pt-2 flex justify-between items-baseline">
           <div>
             <span className="text-sm font-extrabold text-white block">Net Payable Total</span>
-            <span className="text-[10px] text-slate-400">Method: {paymentMethod}</span>
+            <span className="text-[10px] text-slate-400">Method: {isInstantPay ? 'Instant Pay (Settled Today)' : paymentMethod}</span>
           </div>
           <span className="text-lg font-black text-blue-400">
             Rs. {finalTotal.toLocaleString()}

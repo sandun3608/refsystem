@@ -169,14 +169,16 @@ export default function App() {
     loadData();
   }, []);
 
-  // Compute Unread Notification Count (Cheques due soon + low stock items)
+  // Compute Unread Notification Count (Cheques & Cash due soon + low stock items)
   const unreadNotificationsCount = React.useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const chequesDueCount = orders.filter(o => {
-      if (o.paymentMethod !== 'Cheque' || !o.chequeDetails?.chequeDate) return false;
-      const dueDate = new Date(o.chequeDetails.chequeDate);
+    const paymentsDueCount = orders.filter(o => {
+      if (o.isInstantPay || o.paymentMethod === 'Instant Pay') return false;
+      const dueDateStr = o.paymentDueDate || (o.paymentMethod === 'Cheque' ? o.chequeDetails?.chequeDate : null);
+      if (!dueDateStr) return false;
+      const dueDate = new Date(dueDateStr);
       dueDate.setHours(0, 0, 0, 0);
       const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
       return diffDays <= 3;
@@ -184,7 +186,7 @@ export default function App() {
 
     const lowStockCount = products.filter(p => p.stock <= (p.lowStockThreshold || 10)).length;
 
-    return chequesDueCount + lowStockCount;
+    return paymentsDueCount + lowStockCount;
   }, [orders, products]);
 
   // Screen Title & Subtitle

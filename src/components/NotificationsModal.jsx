@@ -10,26 +10,30 @@ export default function NotificationsModal({
 }) {
   if (!isOpen) return null;
 
-  // 1. Cheque payment alerts (within 3 days or today or overdue)
-  const chequeAlerts = orders.filter(o => {
-    if (o.paymentMethod !== 'Cheque' || !o.chequeDetails?.chequeDate) return false;
+  // 1. Payment collection & Cheque clearance alerts (within 3 days, today, or overdue)
+  const paymentAlerts = orders.filter(o => {
+    if (o.isInstantPay || o.paymentMethod === 'Instant Pay') return false;
+    const dueDateStr = o.paymentDueDate || (o.paymentMethod === 'Cheque' ? o.chequeDetails?.chequeDate : null);
+    if (!dueDateStr) return false;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const dueDate = new Date(o.chequeDetails.chequeDate);
+    const dueDate = new Date(dueDateStr);
     dueDate.setHours(0, 0, 0, 0);
     const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
     return diffDays <= 3;
   }).map(o => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const dueDate = new Date(o.chequeDetails.chequeDate);
+    const isCheque = o.paymentMethod === 'Cheque';
+    const dueDateStr = o.paymentDueDate || (isCheque ? o.chequeDetails?.chequeDate : null);
+    const dueDate = new Date(dueDateStr);
     dueDate.setHours(0, 0, 0, 0);
     const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
     let urgency = 'Due Soon';
     if (diffDays < 0) urgency = `Overdue by ${Math.abs(diffDays)}d`;
     else if (diffDays === 0) urgency = 'DUE TODAY';
     else if (diffDays === 1) urgency = 'Due Tomorrow';
-    return { ...o, urgency, diffDays };
+    return { ...o, urgency, diffDays, dueDateStr, isCheque };
   });
 
   // 2. Low stock items
@@ -38,7 +42,7 @@ export default function NotificationsModal({
   // 3. Pending processing orders
   const pendingOrders = orders.filter(o => o.status === 'Processing');
 
-  const totalAlerts = chequeAlerts.length + lowStockAlerts.length;
+  const totalAlerts = paymentAlerts.length + lowStockAlerts.length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
@@ -68,21 +72,21 @@ export default function NotificationsModal({
         {/* Content */}
         <div className="p-4 space-y-4 overflow-y-auto flex-1 no-scrollbar">
           
-          {/* CHEQUE PAYMENT DUE NOTIFICATIONS */}
+          {/* PAYMENT & CHEQUE DUE NOTIFICATIONS */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-amber-700 flex items-center gap-1.5 uppercase tracking-wider">
                 <AlertCircle className="w-4 h-4 text-amber-500" />
-                <span>Cheque Clearance Due ({chequeAlerts.length})</span>
+                <span>Payment & Cheque Alerts ({paymentAlerts.length})</span>
               </span>
             </div>
 
-            {chequeAlerts.length === 0 ? (
+            {paymentAlerts.length === 0 ? (
               <p className="text-[11px] text-slate-400 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                No cheques due in the next 3 days.
+                No payments or cheques due in the next 3 days.
               </p>
             ) : (
-              chequeAlerts.map(order => (
+              paymentAlerts.map(order => (
                 <div
                   key={order.id}
                   onClick={() => {
@@ -92,15 +96,26 @@ export default function NotificationsModal({
                   className="p-3 bg-amber-50/70 border border-amber-200 rounded-2xl cursor-pointer hover:bg-amber-100/70 transition-all flex items-start justify-between gap-2"
                 >
                   <div className="min-w-0">
-                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500 text-white uppercase inline-block mb-1">
-                      {order.urgency}
-                    </span>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500 text-white uppercase inline-block">
+                        {order.urgency}
+                      </span>
+                      <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-white text-slate-700 border border-amber-200 uppercase">
+                        {order.isCheque ? 'Cheque' : 'Cash Due'}
+                      </span>
+                    </div>
                     <h4 className="text-xs font-bold text-slate-900 truncate">{order.customerName}</h4>
-                    <p className="text-[10px] text-slate-600 mt-0.5">
-                      Cheque: {order.chequeDetails.chequeNumber} ({order.chequeDetails.bankName})
-                    </p>
+                    {order.isCheque && order.chequeDetails ? (
+                      <p className="text-[10px] text-slate-600 mt-0.5">
+                        Cheque: {order.chequeDetails.chequeNumber} ({order.chequeDetails.bankName})
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-slate-600 mt-0.5">
+                        Cash collection scheduled
+                      </p>
+                    )}
                     <p className="text-[10px] text-amber-800 font-semibold">
-                      Due: {order.chequeDetails.chequeDate} • Amount: Rs. {order.netTotal?.toLocaleString()}
+                      Due: {order.dueDateStr} • Amount: Rs. {order.netTotal?.toLocaleString()}
                     </p>
                   </div>
                   <ArrowRight className="w-4 h-4 text-amber-600 flex-shrink-0 mt-1" />

@@ -18,7 +18,8 @@ import {
   Check, 
   Send,
   MessageCircle,
-  Truck
+  Truck,
+  Sparkles
 } from 'lucide-react';
 import { generateOrderPDF } from '../utils/pdfGenerator';
 
@@ -31,28 +32,33 @@ export default function OrdersPage({
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
   const [filterStatus, setFilterStatus] = useState('All'); // All, Processing, Delivered
 
-  // Check if a cheque due date is approaching (within 3 days or today or overdue)
-  const isChequeDueSoon = (order) => {
-    if (order.paymentMethod !== 'Cheque' || !order.chequeDetails?.chequeDate) return false;
+  // Check if a payment due date is approaching (within 3 days or today or overdue)
+  const isPaymentDueSoon = (order) => {
+    if (order.isInstantPay || order.paymentMethod === 'Instant Pay') return false;
+    const dueDateStr = order.paymentDueDate || (order.paymentMethod === 'Cheque' ? order.chequeDetails?.chequeDate : null);
+    if (!dueDateStr) return false;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const dueDate = new Date(order.chequeDetails.chequeDate);
+    const dueDate = new Date(dueDateStr);
     dueDate.setHours(0, 0, 0, 0);
     const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
     return diffDays <= 3; // within 3 days or overdue
   };
 
-  const getChequeDueText = (order) => {
-    if (!order.chequeDetails?.chequeDate) return '';
+  const getPaymentDueText = (order) => {
+    const isCheque = order.paymentMethod === 'Cheque';
+    const dueDateStr = order.paymentDueDate || (isCheque ? order.chequeDetails?.chequeDate : null);
+    if (!dueDateStr) return '';
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const dueDate = new Date(order.chequeDetails.chequeDate);
+    const dueDate = new Date(dueDateStr);
     dueDate.setHours(0, 0, 0, 0);
     const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) return `Overdue by ${Math.abs(diffDays)} days!`;
-    if (diffDays === 0) return 'Cheque Due TODAY!';
-    if (diffDays === 1) return 'Cheque Due Tomorrow!';
-    return `Cheque Due in ${diffDays} days (${order.chequeDetails.chequeDate})`;
+    const prefix = isCheque ? 'Cheque Due' : 'Cash Due';
+    if (diffDays < 0) return `${prefix} Overdue by ${Math.abs(diffDays)} days!`;
+    if (diffDays === 0) return `${prefix} TODAY!`;
+    if (diffDays === 1) return `${prefix} Tomorrow!`;
+    return `${prefix} in ${diffDays} days (${dueDateStr})`;
   };
 
   // Toggle single order expand
@@ -108,8 +114,9 @@ export default function OrdersPage({
       `*Delivery Rep:* ${order.repName}`,
       `*Batch No:* ${order.batchNumber}`,
       `*Delivery Date:* ${order.deliveryDate}`,
-      `*Payment:* ${order.paymentMethod}`,
+      `*Payment:* ${order.isInstantPay ? 'Instant Pay (Paid in Full Today)' : order.paymentMethod}`,
       ...(order.chequeDetails ? [`*Cheque Due:* ${order.chequeDetails.chequeDate} (${order.chequeDetails.bankName})`] : []),
+      ...(!order.isInstantPay && order.paymentMethod === 'Cash' && order.paymentDueDate ? [`*Cash Due:* ${order.paymentDueDate}`] : []),
       `----------------------------`,
       `*ITEMS:*`,
       ...(order.items || []).map(i => `• ${i.name} (${i.brand}) - ${i.quantity} pcs @ Rs. ${i.salePrice} = Rs. ${i.lineTotal.toLocaleString()}`),
@@ -187,7 +194,7 @@ export default function OrdersPage({
           filteredOrders.map((order) => {
             const isExpanded = expandedOrderId === order.id;
             const isSelected = selectedOrderIds.includes(order.id);
-            const chequeAlert = isChequeDueSoon(order);
+            const paymentAlert = isPaymentDueSoon(order);
             const isDelivered = order.status === 'Delivered';
 
             return (
@@ -221,11 +228,11 @@ export default function OrdersPage({
                       </button>
 
                       <div className="min-w-0">
-                        {/* Cheque Approaching Notification Alert Icon ("chek eka gewanna dine lan weddi order eke issarahin notification icon eka enna ona") */}
-                        {chequeAlert && (
+                        {/* Payment / Cheque Approaching Notification Alert Icon */}
+                        {paymentAlert && (
                           <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500 text-white text-[10px] font-extrabold mb-1 shadow-2xs animate-pulse">
                             <AlertCircle className="w-3 h-3 stroke-[2.5]" />
-                            <span>{getChequeDueText(order)}</span>
+                            <span>{getPaymentDueText(order)}</span>
                           </div>
                         )}
 
@@ -234,19 +241,26 @@ export default function OrdersPage({
                             {order.id}
                           </span>
                           
-                          {/* Payment Option Cash or Cheque badge ("order eke kelin watenna ona payment option eka cash da chekda") */}
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${
-                            order.paymentMethod === 'Cash'
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                          }`}>
-                            {order.paymentMethod === 'Cash' ? (
-                              <Banknote className="w-3 h-3" />
-                            ) : (
-                              <CreditCard className="w-3 h-3" />
-                            )}
-                            <span>{order.paymentMethod}</span>
-                          </span>
+                          {/* Payment Option badge */}
+                          {order.isInstantPay ? (
+                            <span className="text-[10px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-300">
+                              <Sparkles className="w-3 h-3 text-emerald-600" />
+                              <span>Instant Pay</span>
+                            </span>
+                          ) : (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${
+                              order.paymentMethod === 'Cash'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                            }`}>
+                              {order.paymentMethod === 'Cash' ? (
+                                <Banknote className="w-3 h-3" />
+                              ) : (
+                                <CreditCard className="w-3 h-3" />
+                              )}
+                              <span>{order.paymentMethod}</span>
+                            </span>
+                          )}
 
                           {/* Status Badge */}
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
@@ -310,7 +324,20 @@ export default function OrdersPage({
                         <span className="font-semibold text-blue-600">{order.deliveryDate}</span>
                       </div>
 
-                      {order.chequeDetails && (
+                      {order.isInstantPay ? (
+                        <div className="pt-1.5 border-t border-slate-100 flex justify-between text-[11px]">
+                          <span className="text-slate-500">Payment Status:</span>
+                          <span className="font-bold text-emerald-700">Instant Pay (Settled Today)</span>
+                        </div>
+                      ) : !order.isInstantPay && order.paymentMethod === 'Cash' && order.paymentDueDate ? (
+                        <div className="pt-1.5 border-t border-slate-100 space-y-1">
+                          <span className="text-[10px] font-bold text-emerald-700 uppercase">Cash Collection Details:</span>
+                          <div className="flex justify-between text-[11px]">
+                            <span className="text-slate-500">Payment Due Date:</span>
+                            <span className="font-bold text-amber-700">{order.paymentDueDate}</span>
+                          </div>
+                        </div>
+                      ) : order.chequeDetails ? (
                         <div className="pt-1.5 border-t border-slate-100 space-y-1">
                           <span className="text-[10px] font-bold text-indigo-700 uppercase">Cheque Particulars:</span>
                           <div className="flex justify-between text-[11px]">
@@ -324,7 +351,7 @@ export default function OrdersPage({
                             <span className="font-bold text-amber-700">{order.chequeDetails.chequeDate}</span>
                           </div>
                         </div>
-                      )}
+                      ) : null}
                     </div>
 
                     {/* Products in this order */}

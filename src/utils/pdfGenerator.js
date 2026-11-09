@@ -60,7 +60,10 @@ export function generateOrderPDF(order) {
   doc.text(`Importer: ${order.mainShopName || 'LumiCosmetics'}`, 340, 136);
   doc.text(`Delivery Rep: ${order.repName || 'N/A'}`, 340, 150);
   doc.text(`Delivery Target Date: ${order.deliveryDate || 'N/A'}`, 340, 164);
-  doc.text(`Payment: ${order.paymentMethod}${order.chequeDetails ? ` (Chq: ${order.chequeDetails.chequeNumber}, Due: ${order.chequeDetails.chequeDate})` : ''}`, 340, 178);
+  const paymentText = order.isInstantPay 
+    ? 'Instant Pay (Paid in Full Today)' 
+    : `${order.paymentMethod}${order.chequeDetails ? ` (Chq: ${order.chequeDetails.chequeNumber}, Due: ${order.chequeDetails.chequeDate})` : (order.paymentDueDate ? ` (Due: ${order.paymentDueDate})` : '')}`;
+  doc.text(`Payment: ${paymentText}`, 340, 178);
 
   // Items Table
   const tableRows = (order.items || []).map((item, index) => [

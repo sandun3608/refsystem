@@ -66,8 +66,8 @@ export default function ReportsPage({ products, orders, customers }) {
   const brandSalesList = Object.entries(brandSalesMap).sort((a, b) => b[1] - a[1]);
   const maxBrandSales = Math.max(...brandSalesList.map(b => b[1]), 1);
 
-  // 6. Cash vs Cheque Totals ("chek walata keeayak gannwada , koccharak cash karanwada kiyalath ona")
-  const cashTotal = orders.filter(o => o.paymentMethod === 'Cash').reduce((sum, o) => sum + (Number(o.netTotal) || 0), 0);
+  // 6. Cash & Instant vs Cheque Totals
+  const cashTotal = orders.filter(o => o.paymentMethod === 'Cash' || o.paymentMethod === 'Instant Pay' || o.isInstantPay).reduce((sum, o) => sum + (Number(o.netTotal) || 0), 0);
   const chequeTotal = orders.filter(o => o.paymentMethod === 'Cheque').reduce((sum, o) => sum + (Number(o.netTotal) || 0), 0);
   const totalPayments = cashTotal + chequeTotal;
   const cashPercent = totalPayments > 0 ? Math.round((cashTotal / totalPayments) * 100) : 50;
