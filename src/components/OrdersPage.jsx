@@ -90,6 +90,7 @@ export default function OrdersPage({
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.repName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.deliveryId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.batchNumber?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesFilter && matchesSearch;
   });
@@ -112,7 +113,7 @@ export default function OrdersPage({
       `*Customer Shop:* ${order.customerName}`,
       `*Address:* ${order.customerAddress}`,
       `*Delivery Rep:* ${order.repName}`,
-      `*Batch No:* ${order.batchNumber}`,
+      `*Delivery ID:* ${order.deliveryId || order.batchNumber}`,
       `*Delivery Date:* ${order.deliveryDate}`,
       `*Payment:* ${order.isInstantPay ? 'Instant Pay (Paid in Full Today)' : order.paymentMethod}`,
       ...(order.chequeDetails ? [`*Cheque Due:* ${order.chequeDetails.chequeDate} (${order.chequeDetails.bankName})`] : []),
@@ -281,7 +282,7 @@ export default function OrdersPage({
                           <User className="w-3 h-3 text-slate-400" />
                           <span>Rep: <strong>{order.repName}</strong></span>
                           <span>•</span>
-                          <span>Batch: <strong>{order.batchNumber}</strong></span>
+                          <span>Delivery ID: <strong className="font-mono text-blue-700">{order.deliveryId || order.batchNumber}</strong></span>
                         </p>
                       </div>
                     </div>

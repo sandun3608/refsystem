@@ -22,6 +22,7 @@ import confetti from 'canvas-confetti';
 export default function CheckoutPage({
   selectedItems,
   products,
+  orders = [],
   activeCustomer,
   activeRep,
   activeMainShop,
@@ -30,10 +31,32 @@ export default function CheckoutPage({
   onSubmitOrder,
   onCancel
 }) {
-  // Generate a realistic batch code for this customer shop delivery
-  const defaultBatch = `BATCH-${activeCustomer?.id || 'CUST'}-${new Date().toISOString().slice(2, 10).replace(/-/g, '')}`;
+  // Generate incremental Delivery ID starting from 000001 upwards ("000001 udata generate wenna danna")
+  const defaultDeliveryId = React.useMemo(() => {
+    let maxNum = 0;
+    (orders || []).forEach(o => {
+      const val = o.deliveryId || o.batchNumber || '';
+      const matches = String(val).match(/\d+/g);
+      if (matches) {
+        matches.forEach(m => {
+          const n = parseInt(m, 10);
+          if (!isNaN(n) && n > maxNum && n < 999999) {
+            maxNum = n;
+          }
+        });
+      }
+    });
+    const nextNum = maxNum > 0 ? maxNum + 1 : (orders.length + 1);
+    return String(nextNum).padStart(6, '0');
+  }, [orders]);
 
-  const [batchNumber, setBatchNumber] = useState(defaultBatch);
+  const [deliveryId, setDeliveryId] = useState(defaultDeliveryId);
+
+  // Sync when orders change
+  React.useEffect(() => {
+    setDeliveryId(defaultDeliveryId);
+  }, [defaultDeliveryId]);
+
   const [overallDiscount, setOverallDiscount] = useState(0); // in Rupees
   
   // Instant Pay: Customer paid today immediately -> no need to choose cash/cheque/dates!
@@ -103,7 +126,8 @@ export default function CheckoutPage({
       customerId: activeCustomer?.id || 'CUST-01',
       customerName: activeCustomer?.name || 'Customer Shop',
       customerAddress: activeCustomer?.address || '',
-      batchNumber: batchNumber.trim() || defaultBatch,
+      deliveryId: (deliveryId || defaultDeliveryId).trim(),
+      batchNumber: (deliveryId || defaultDeliveryId).trim(),
       items: orderItems,
       subtotal,
       overallDiscount: Number(overallDiscount) || 0,
@@ -237,21 +261,23 @@ export default function CheckoutPage({
         </div>
       </div>
 
-      {/* Batch Number ("kadeta itema danata saren sareta batch number eka add wenna ona") */}
+      {/* Delivery ID ("delivey batch number neme delivery id. eka 000001 udata generate wenna danna") */}
       <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Delivery Batch Number</span>
+            <Layers className="w-3.5 h-3.5 text-blue-600" />
+            <span>Delivery ID</span>
           </label>
-          <span className="text-[10px] text-slate-400">Unique for this drop</span>
+          <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 font-mono">
+            Auto-Generated
+          </span>
         </div>
         <input
           type="text"
-          value={batchNumber}
-          onChange={(e) => setBatchNumber(e.target.value)}
-          placeholder="e.g. BATCH-2026-01"
-          className="w-full px-3.5 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none"
+          value={deliveryId}
+          onChange={(e) => setDeliveryId(e.target.value)}
+          placeholder="000001"
+          className="w-full px-3.5 py-2 text-xs font-mono font-bold tracking-widest text-blue-900 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none"
         />
       </div>
 

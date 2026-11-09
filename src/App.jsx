@@ -757,6 +757,7 @@ export default function App() {
             <CheckoutPage
               selectedItems={selectedItems}
               products={products}
+              orders={orders}
               activeCustomer={activeCustomer}
               activeRep={activeRep}
               activeMainShop={activeMainShop}

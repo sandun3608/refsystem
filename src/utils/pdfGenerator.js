@@ -46,7 +46,7 @@ export function generateOrderPDF(order) {
   doc.setFontSize(9);
   doc.setTextColor(100, 116, 139);
   doc.text(`Address: ${order.customerAddress || 'N/A'}`, 40, 150);
-  doc.text(`Batch ID: ${order.batchNumber || 'N/A'}`, 40, 164);
+  doc.text(`Delivery ID: ${order.deliveryId || order.batchNumber || '000001'}`, 40, 164);
 
   // Delivery Rep & Importer Info (Right side)
   doc.setTextColor(...darkSlate);
