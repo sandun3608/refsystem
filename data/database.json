@@ -1,0 +1,41 @@
+{
+  "shops": [
+    {
+      "id": "MS001jaja",
+      "name": "Haj",
+      "image": "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60",
+      "createdAt": "2026-11-09T00:12:45.588Z"
+    }
+  ],
+  "reps": [
+    {
+      "id": "REP-821",
+      "name": "Bb",
+      "image": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&auto=format&fit=crop&q=60",
+      "phone": "M0999",
+      "shopId": "MS001jaja",
+      "createdAt": "2026-11-09T00:17:33.091Z"
+    }
+  ],
+  "customers": [
+    {
+      "id": "CUST-01",
+      "name": "Ahha",
+      "address": "Haha",
+      "ownerName": "Haha",
+      "image": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&auto=format&fit=crop&q=60",
+      "phone": "Haha",
+      "createdAt": "2026-11-09T00:18:41.885Z"
+    }
+  ],
+  "categories": [
+    "Skincare",
+    "Lipstick & Lip Care",
+    "Foundation & Concealer",
+    "Eye Makeup",
+    "Perfume & Fragrance",
+    "Hair Serums & Oils"
+  ],
+  "products": [],
+  "orders": []
+}
