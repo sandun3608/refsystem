@@ -394,6 +394,10 @@ export default function App() {
           onSearchChange={setSearchTerm}
           isPhoneFrame={isPhoneFrame}
           onToggleFrame={() => setIsPhoneFrame(!isPhoneFrame)}
+          onLogout={handleLogout}
+          activeMainShop={activeMainShop}
+          activeRep={activeRep}
+          activeCustomer={activeCustomer}
         />
 
         {/* Main Content View Container */}

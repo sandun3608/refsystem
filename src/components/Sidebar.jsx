@@ -121,77 +121,62 @@ export default function Sidebar({
 
         {/* Bottom Profile / Identity Section (Visible ONLY when on Dashboard / Home Page during an active session) */}
         {['dashboard', 'checkout', 'shopDetails'].includes(currentScreen) && activeMainShop && activeRep && activeCustomer && (
-          <div className="p-3.5 border-t border-slate-100 bg-slate-50/70">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2.5 px-1">
-              Active Session Context
+          <div className="p-2.5 border-t border-slate-100 bg-slate-50/70">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 px-0.5">
+              Active Session
             </p>
             
-            <div className="space-y-2">
-              {/* 1. Main Shop Circle */}
-              <div className="flex items-center space-x-2.5 bg-white p-2 rounded-xl border border-slate-200/70 shadow-xs">
-                <div className="relative">
-                  <img
-                    src={activeMainShop?.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=100&auto=format&fit=crop&q=60'}
-                    alt={activeMainShop?.name || 'Shop'}
-                    className="w-8 h-8 rounded-full object-cover border-2 border-blue-600 ring-2 ring-blue-100"
-                  />
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-blue-600 rounded-full border-2 border-white"></span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-blue-600 font-bold uppercase tracking-tight">Main Shop</p>
-                  <p className="text-xs font-bold text-slate-900 truncate">
-                    {activeMainShop?.name || 'Not Selected'}
-                  </p>
-                </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {/* 1. Main Shop Small Circle */}
+              <div className="flex flex-col items-center bg-white p-1.5 rounded-xl border border-slate-200/70 shadow-2xs text-center min-w-0">
+                <img
+                  src={activeMainShop?.image}
+                  alt={activeMainShop?.name}
+                  className="w-6 h-6 rounded-full object-cover border border-blue-500 mb-1 shadow-2xs"
+                />
+                <span className="text-[8px] font-bold text-blue-600 uppercase block leading-none">Shop</span>
+                <span className="text-[9px] font-bold text-slate-800 truncate w-full block mt-0.5">{activeMainShop?.name?.split(' ')[0]}</span>
               </div>
 
-              {/* 2. Rep Circle */}
-              <div className="flex items-center space-x-2.5 bg-white p-2 rounded-xl border border-slate-200/70 shadow-xs">
-                <div className="relative">
-                  <img
-                    src={activeRep?.image || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=60'}
-                    alt={activeRep?.name || 'Rep'}
-                    className="w-8 h-8 rounded-full object-cover border-2 border-emerald-500 ring-2 ring-emerald-100"
-                  />
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white"></span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-tight">Delivery Rep</p>
-                  <p className="text-xs font-bold text-slate-900 truncate">
-                    {activeRep?.name || 'Not Selected'}
-                  </p>
-                </div>
+              {/* 2. Rep Small Circle */}
+              <div className="flex flex-col items-center bg-white p-1.5 rounded-xl border border-slate-200/70 shadow-2xs text-center min-w-0">
+                <img
+                  src={activeRep?.image}
+                  alt={activeRep?.name}
+                  className="w-6 h-6 rounded-full object-cover border border-emerald-500 mb-1 shadow-2xs"
+                />
+                <span className="text-[8px] font-bold text-emerald-600 uppercase block leading-none">Rep</span>
+                <span className="text-[9px] font-bold text-slate-800 truncate w-full block mt-0.5">{activeRep?.name?.split(' ')[0]}</span>
               </div>
 
-              {/* 3. Customer Shop Circle */}
-              <div className="flex items-center space-x-2.5 bg-white p-2 rounded-xl border border-slate-200/70 shadow-xs">
-                <div className="relative">
+              {/* 3. Customer Small Circle */}
+              <div className="flex flex-col items-center bg-white p-1.5 rounded-xl border border-slate-200/70 shadow-2xs text-center min-w-0">
+                {activeCustomer?.image ? (
                   <img
-                    src={activeCustomer?.image || 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&auto=format&fit=crop&q=60'}
-                    alt={activeCustomer?.name || 'Customer'}
-                    className="w-8 h-8 rounded-full object-cover border-2 border-purple-500 ring-2 ring-purple-100"
+                    src={activeCustomer?.image}
+                    alt={activeCustomer?.name}
+                    className="w-6 h-6 rounded-full object-cover border border-purple-500 mb-1 shadow-2xs"
                   />
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-purple-500 rounded-full border-2 border-white"></span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-purple-600 font-bold uppercase tracking-tight">Customer Shop</p>
-                  <p className="text-xs font-bold text-slate-900 truncate">
-                    {activeCustomer?.name || 'Not Selected'}
-                  </p>
-                </div>
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-[8px] mb-1">
+                    {activeCustomer?.name?.substring(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <span className="text-[8px] font-bold text-purple-600 uppercase block leading-none">Client</span>
+                <span className="text-[9px] font-bold text-slate-800 truncate w-full block mt-0.5">{activeCustomer?.name?.split(' ')[0]}</span>
               </div>
             </div>
 
-            {/* Log Out button (returns to Page 1: Main Shop selection) */}
+            {/* Compact Log out button */}
             <button
               onClick={() => {
                 onLogout();
                 onClose();
               }}
-              className="mt-3 w-full flex items-center justify-center space-x-2 px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100/80 rounded-xl transition-all border border-red-200/60 active:scale-98"
+              className="mt-2 w-full flex items-center justify-center space-x-1.5 py-1.5 px-2 text-[10px] font-bold text-red-600 bg-red-50 hover:bg-red-100/80 rounded-xl transition-all border border-red-200/60 active:scale-98"
             >
-              <LogOut className="w-4 h-4" />
-              <span>Switch / Log Out to First Page</span>
+              <LogOut className="w-3 h-3" />
+              <span>Log Out to First Page</span>
             </button>
           </div>
         )}

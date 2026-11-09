@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, ArrowLeft, Search, Smartphone, Monitor } from 'lucide-react';
+import { Bell, ArrowLeft, Search, Smartphone, Monitor, LogOut } from 'lucide-react';
 
 export default function Header({ 
   currentScreen, 
@@ -12,10 +12,15 @@ export default function Header({
   searchTerm, 
   onSearchChange,
   isPhoneFrame,
-  onToggleFrame
+  onToggleFrame,
+  onLogout,
+  activeMainShop,
+  activeRep,
+  activeCustomer
 }) {
   const showSearch = currentScreen === 'dashboard' || currentScreen === 'products' || currentScreen === 'orders';
   const showBack = !['mainShops', 'dashboard'].includes(currentScreen);
+  const isSessionActive = Boolean(activeCustomer && (currentScreen === 'dashboard' || currentScreen === 'checkout'));
 
   return (
     <div className="sticky top-0 z-30 px-2 pt-1 pb-1 bg-gradient-to-b from-slate-100/90 to-transparent">
@@ -23,7 +28,7 @@ export default function Header({
         {/* Top bar with curved aesthetic */}
         <div className="flex items-center justify-between px-3 py-2">
           
-          {/* LEFT: Nav bar icon (3-lines menu) + Back button + Title */}
+          {/* LEFT: Nav bar icon (3-lines menu) + Back button + Title + Small Avatar Circles on Home */}
           <div className="flex items-center space-x-2 min-w-0">
             
             {/* Modern 3-Lines Navigation Bar Menu Button on the LEFT */}
@@ -50,21 +55,47 @@ export default function Header({
               </button>
             )}
 
-            {/* Title & Subtitle */}
+            {/* Title & Small Mini Circles on Home Page */}
             <div className="min-w-0">
-              <h1 className="text-xs font-black text-slate-900 tracking-tight flex items-center gap-1.5 truncate">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 ring-4 ring-blue-100 flex-shrink-0 animate-pulse"></span>
-                <span className="truncate">{title}</span>
-              </h1>
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-xs font-black text-slate-900 tracking-tight truncate">
+                  {title}
+                </h1>
+
+                {/* 3 Small Mini Circles on Home Page (Shop, Rep, Customer) */}
+                {isSessionActive && (
+                  <div className="flex items-center -space-x-1.5 flex-shrink-0">
+                    <img
+                      src={activeMainShop?.image}
+                      alt={activeMainShop?.name}
+                      title={`Shop: ${activeMainShop?.name}`}
+                      className="w-4 h-4 rounded-full object-cover border border-white ring-1 ring-blue-500"
+                    />
+                    <img
+                      src={activeRep?.image}
+                      alt={activeRep?.name}
+                      title={`Rep: ${activeRep?.name}`}
+                      className="w-4 h-4 rounded-full object-cover border border-white ring-1 ring-emerald-500"
+                    />
+                    <img
+                      src={activeCustomer?.image || 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&auto=format&fit=crop&q=60'}
+                      alt={activeCustomer?.name}
+                      title={`Customer: ${activeCustomer?.name}`}
+                      className="w-4 h-4 rounded-full object-cover border border-white ring-1 ring-purple-500"
+                    />
+                  </div>
+                )}
+              </div>
+
               {subtitle && (
-                <p className="text-[9px] font-semibold text-slate-400 truncate max-w-[160px] tracking-tight">
+                <p className="text-[9px] font-semibold text-slate-400 truncate max-w-[150px] tracking-tight">
                   {subtitle}
                 </p>
               )}
             </div>
           </div>
 
-          {/* RIGHT: Phone Preview Toggle + Notification Icon on the RIGHT */}
+          {/* RIGHT: Phone Toggle + Notification Icon + Log Out Icon on the right */}
           <div className="flex items-center space-x-1.5 flex-shrink-0">
             
             {/* Toggle Phone frame preview (for desktop view) */}
@@ -86,7 +117,7 @@ export default function Header({
               )}
             </button>
 
-            {/* Notifications button on the RIGHT */}
+            {/* Notifications button */}
             <button
               onClick={onOpenNotifications}
               className="relative w-8 h-8 flex items-center justify-center text-slate-700 hover:text-blue-600 bg-slate-100/90 hover:bg-blue-50 rounded-xl transition-all active:scale-95 border border-slate-200/60 shadow-2xs"
@@ -99,6 +130,21 @@ export default function Header({
                 </span>
               )}
             </button>
+
+            {/* LOG OUT ICON BUTTON - Placed right next to the Notification button */}
+            {onLogout && isSessionActive && (
+              <button
+                onClick={() => {
+                  if (confirm('Log out of this customer shop and return to first page?')) {
+                    onLogout();
+                  }
+                }}
+                className="w-8 h-8 flex items-center justify-center text-red-500 hover:text-white bg-red-50 hover:bg-red-600 rounded-xl transition-all active:scale-95 border border-red-200/70 shadow-2xs"
+                title="Log Out to First Page"
+              >
+                <LogOut className="w-3.5 h-3.5 stroke-[2.2]" />
+              </button>
+            )}
 
           </div>
         </div>
