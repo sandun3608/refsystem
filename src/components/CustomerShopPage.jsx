@@ -11,6 +11,7 @@ export default function CustomerShopPage({
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [formError, setFormError] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     address: '',
@@ -38,9 +39,22 @@ export default function CustomerShopPage({
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.name.trim()) return;
-    onAddCustomer({ ...formData, shopId: mainShop?.id });
+    if (e && e.preventDefault) e.preventDefault();
+    setFormError('');
+    if (!formData.name || !formData.name.trim()) {
+      setFormError('Please enter Customer Shop Name before saving');
+      return;
+    }
+    const resolvedId = formData.id?.trim() || `CUST-0${customers.length + 1}`;
+    onAddCustomer({ 
+      ...formData, 
+      id: resolvedId,
+      name: formData.name.trim(),
+      address: formData.address?.trim() || '',
+      ownerName: formData.ownerName?.trim() || '',
+      phone: formData.phone?.trim() || '',
+      shopId: mainShop?.id 
+    });
     setFormData({
       name: '',
       address: '',
@@ -49,6 +63,7 @@ export default function CustomerShopPage({
       ownerName: '',
       phone: ''
     });
+    setFormError('');
     setIsFormOpen(false);
   };
 
@@ -250,7 +265,15 @@ export default function CustomerShopPage({
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="p-5 space-y-3.5 overflow-y-auto no-scrollbar">
+            <form onSubmit={handleSubmit} noValidate className="p-5 space-y-3.5 overflow-y-auto no-scrollbar">
+              {/* Form Error Banner */}
+              {formError && (
+                <div className="p-2.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                  <span className="text-red-500 font-bold">⚠️</span>
+                  <span>{formError}</span>
+                </div>
+              )}
+
               {/* Shop Name */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -258,56 +281,55 @@ export default function CustomerShopPage({
                 </label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. Rose Gold Salon & Cosmetics"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none transition-all"
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (formError) setFormError('');
+                  }}
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none transition-all font-medium text-slate-900"
                 />
               </div>
 
               {/* Shop ID */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Shop ID <span className="text-red-500">*</span>
+                  Shop ID
                 </label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. CUST-01"
                   value={formData.id}
                   onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none transition-all"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none transition-all font-medium text-slate-900"
                 />
               </div>
 
               {/* Address */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Address <span className="text-red-500">*</span>
+                  Address
                 </label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. No 45, Galle Road, Colombo 03"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 outline-none transition-all"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 outline-none transition-all font-medium text-slate-900"
                 />
               </div>
 
               {/* Owner Name */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Owner Name <span className="text-red-500">*</span>
+                  Owner Name
                 </label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. Mrs. Chandrika Fernando"
                   value={formData.ownerName}
                   onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 outline-none transition-all"
+                  className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 outline-none transition-all font-medium text-slate-900"
                 />
               </div>
 
@@ -374,13 +396,17 @@ export default function CustomerShopPage({
               <div className="flex gap-2.5 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsFormOpen(false)}
+                  onClick={() => {
+                    setFormError('');
+                    setIsFormOpen(false);
+                  }}
                   className="flex-1 py-2.5 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleSubmit}
                   className="flex-1 py-2.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl shadow-md shadow-purple-600/20 transition-all active:scale-98"
                 >
                   Save Customer Shop

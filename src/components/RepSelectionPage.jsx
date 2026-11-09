@@ -4,6 +4,7 @@ import { UserCheck, Plus, Search, Phone, ArrowRight, Trash2, Image, Shield } fro
 export default function RepSelectionPage({ reps, onSelectRep, onAddRep, onDeleteRep, mainShop }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [formError, setFormError] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     id: `REP-${Math.floor(100 + Math.random() * 900)}`,
@@ -30,15 +31,27 @@ export default function RepSelectionPage({ reps, onSelectRep, onAddRep, onDelete
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.name.trim()) return;
-    onAddRep({ ...formData, shopId: mainShop?.id });
+    if (e && e.preventDefault) e.preventDefault();
+    setFormError('');
+    if (!formData.name || !formData.name.trim()) {
+      setFormError('Please enter Delivery Ref Name before saving');
+      return;
+    }
+    const resolvedId = formData.id?.trim() || `REP-${Math.floor(100 + Math.random() * 900)}`;
+    onAddRep({ 
+      ...formData, 
+      id: resolvedId,
+      name: formData.name.trim(),
+      phone: formData.phone?.trim() || '',
+      shopId: mainShop?.id 
+    });
     setFormData({
       name: '',
       id: `REP-${Math.floor(100 + Math.random() * 900)}`,
       image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=60',
       phone: ''
     });
+    setFormError('');
     setIsFormOpen(false);
   };
 
@@ -217,7 +230,15 @@ export default function RepSelectionPage({ reps, onSelectRep, onAddRep, onDelete
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto no-scrollbar">
+            <form onSubmit={handleSubmit} noValidate className="p-5 space-y-4 overflow-y-auto no-scrollbar">
+              {/* Form Error Banner */}
+              {formError && (
+                <div className="p-2.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                  <span className="text-red-500 font-bold">⚠️</span>
+                  <span>{formError}</span>
+                </div>
+              )}
+
               {/* Rep Name */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -225,26 +246,27 @@ export default function RepSelectionPage({ reps, onSelectRep, onAddRep, onDelete
                 </label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. Kamal Perera"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (formError) setFormError('');
+                  }}
+                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all font-medium text-slate-900"
                 />
               </div>
 
               {/* Rep ID */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Ref ID <span className="text-red-500">*</span>
+                  Ref ID
                 </label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. REP-101"
                   value={formData.id}
                   onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
+                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all font-medium text-slate-900"
                 />
               </div>
 
@@ -303,13 +325,17 @@ export default function RepSelectionPage({ reps, onSelectRep, onAddRep, onDelete
               <div className="flex gap-2.5 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsFormOpen(false)}
+                  onClick={() => {
+                    setFormError('');
+                    setIsFormOpen(false);
+                  }}
                   className="flex-1 py-2.5 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleSubmit}
                   className="flex-1 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md shadow-emerald-600/20 transition-all active:scale-98"
                 >
                   Save & Add Ref

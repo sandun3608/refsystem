@@ -40,6 +40,8 @@ export default function ProductManagePage({
   const fileInputRef = useRef(null);
   const addImageInputRef = useRef(null);
   const editImageInputRef = useRef(null);
+  const addScrollRef = useRef(null);
+  const editScrollRef = useRef(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -348,17 +350,28 @@ export default function ProductManagePage({
     setIsEditModalOpen(true);
   };
 
+  // Error trigger with smooth scroll to top
+  const triggerFormError = (msg, modalType = 'add') => {
+    setFormError(msg);
+    if (modalType === 'add') {
+      addScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      editScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   // Save Add Product (Robust validation without native form block)
   const handleSaveAdd = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setFormError('');
 
     if (!formData.name || !formData.name.trim()) {
-      setFormError('Please enter a product name');
+      triggerFormError('Please enter a product name', 'add');
       return;
     }
-    if (!formData.salePrice || Number(formData.salePrice) <= 0) {
-      setFormError('Please enter a valid sale price (e.g. 1500)');
+    const saleNum = Number(formData.salePrice);
+    if (!formData.salePrice || isNaN(saleNum) || saleNum <= 0) {
+      triggerFormError('Please enter a valid sale price (e.g. 1500)', 'add');
       return;
     }
 
@@ -367,10 +380,10 @@ export default function ProductManagePage({
       name: formData.name.trim(),
       brand: formData.brand || categories[0] || 'General',
       costPrice: Number(formData.costPrice) || 0,
-      salePrice: Number(formData.salePrice) || 0,
+      salePrice: saleNum,
       stock: Number(formData.stock) || 0,
       lowStockThreshold: Number(formData.lowStockThreshold) || 10,
-      batchId: formData.batchId || `BATCH-2026-${Math.floor(100 + Math.random() * 900)}`,
+      batchId: formData.batchId?.trim() || `BATCH-2026-${Math.floor(100 + Math.random() * 900)}`,
       expiryDate: formData.expiryDate || '2028-12-31',
       image: formData.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60'
     };
@@ -387,7 +400,7 @@ export default function ProductManagePage({
     setFormError('');
 
     if (!formData.name || !formData.name.trim()) {
-      setFormError('Please enter a product name');
+      triggerFormError('Please enter a product name', 'edit');
       return;
     }
     if (!editingProductId) return;
@@ -395,21 +408,22 @@ export default function ProductManagePage({
     let payload;
 
     if (isAddingNewBatch) {
-      if (!newBatchData.batchId || !newBatchData.batchId.trim()) {
-        setFormError('Please enter a new batch number');
+      const addedQty = Number(newBatchData.stockQty);
+      if (!newBatchData.stockQty || isNaN(addedQty) || addedQty <= 0) {
+        triggerFormError('Please enter the new stock quantity to add (greater than 0)', 'edit');
         return;
       }
-      if (!newBatchData.stockQty || Number(newBatchData.stockQty) <= 0) {
-        setFormError('Please enter the new stock quantity to add (greater than 0)');
-        return;
-      }
-      if (!newBatchData.salePrice || Number(newBatchData.salePrice) <= 0) {
-        setFormError('Please enter a valid sale price for the new batch');
+      
+      const newSalePrice = Number(newBatchData.salePrice || formData.salePrice || 0);
+      if (newSalePrice <= 0) {
+        triggerFormError('Please enter a valid sale price for the new batch', 'edit');
         return;
       }
 
-      const addedQty = Number(newBatchData.stockQty) || 0;
       const totalNewStock = Number(formData.stock || 0) + addedQty;
+      const resolvedBatchId = (newBatchData.batchId && newBatchData.batchId.trim()) 
+        ? newBatchData.batchId.trim() 
+        : `BATCH-${Date.now().toString().slice(-4)}`;
 
       const currentProd = products.find(p => p.id === editingProductId);
       const existingBatches = currentProd?.batches || [
@@ -424,11 +438,11 @@ export default function ProductManagePage({
       ];
 
       const newBatchEntry = {
-        batchId: newBatchData.batchId.trim(),
+        batchId: resolvedBatchId,
         stockAdded: addedQty,
-        costPrice: Number(newBatchData.costPrice) || 0,
-        salePrice: Number(newBatchData.salePrice) || 0,
-        expiryDate: newBatchData.expiryDate || '',
+        costPrice: Number(newBatchData.costPrice || formData.costPrice) || 0,
+        salePrice: newSalePrice,
+        expiryDate: newBatchData.expiryDate || formData.expiryDate || '',
         addedAt: new Date().toISOString()
       };
 
@@ -437,16 +451,17 @@ export default function ProductManagePage({
         name: formData.name.trim(),
         brand: formData.brand || categories[0] || 'General',
         stock: totalNewStock,
-        salePrice: Number(newBatchData.salePrice),
-        costPrice: Number(newBatchData.costPrice) || 0,
-        batchId: newBatchData.batchId.trim(),
+        salePrice: newSalePrice,
+        costPrice: Number(newBatchData.costPrice || formData.costPrice) || 0,
+        batchId: resolvedBatchId,
         expiryDate: newBatchData.expiryDate || formData.expiryDate || '',
         image: formData.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60',
         batches: [...existingBatches, newBatchEntry]
       };
     } else {
-      if (!formData.salePrice || Number(formData.salePrice) <= 0) {
-        setFormError('Please enter a valid sale price (e.g. 1500)');
+      const saleNum = Number(formData.salePrice);
+      if (!formData.salePrice || isNaN(saleNum) || saleNum <= 0) {
+        triggerFormError('Please enter a valid sale price (e.g. 1500)', 'edit');
         return;
       }
 
@@ -455,7 +470,7 @@ export default function ProductManagePage({
         name: formData.name.trim(),
         brand: formData.brand || categories[0] || 'General',
         costPrice: Number(formData.costPrice) || 0,
-        salePrice: Number(formData.salePrice) || 0,
+        salePrice: saleNum,
         stock: Number(formData.stock) || 0,
         lowStockThreshold: Number(formData.lowStockThreshold) || 10,
         batchId: formData.batchId || '',
@@ -820,7 +835,7 @@ export default function ProductManagePage({
           </div>
 
           {/* Locked Vertical Scroll Content (Zero Horizontal Drift) */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 space-y-3.5 overscroll-contain no-scrollbar">
+          <div ref={addScrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 space-y-3.5 overscroll-contain no-scrollbar">
             
             {/* Form Validation Error Banner */}
             {formError && (
@@ -990,6 +1005,14 @@ export default function ProductManagePage({
 
           </div>
 
+          {/* Form Validation Error Banner right above bottom button */}
+          {formError && (
+            <div className="flex-shrink-0 px-4 py-2.5 bg-red-50 border-t border-red-200 text-red-700 text-xs font-bold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+              <span>{formError}</span>
+            </div>
+          )}
+
           {/* Bottom Action Bar */}
           <div className="flex-shrink-0 p-3 bg-white border-t border-slate-200 flex gap-2">
             <button
@@ -1050,7 +1073,7 @@ export default function ProductManagePage({
           </div>
 
           {/* Locked Vertical Scroll Content */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 space-y-3.5 overscroll-contain no-scrollbar">
+          <div ref={editScrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 space-y-3.5 overscroll-contain no-scrollbar">
             
             {/* Form Validation Error Banner */}
             {formError && (
@@ -1433,6 +1456,14 @@ export default function ProductManagePage({
             </div>
 
           </div>
+
+          {/* Form Validation Error Banner right above bottom button */}
+          {formError && (
+            <div className="flex-shrink-0 px-4 py-2.5 bg-red-50 border-t border-red-200 text-red-700 text-xs font-bold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+              <span>{formError}</span>
+            </div>
+          )}
 
           {/* Bottom Action Bar */}
           <div className="flex-shrink-0 p-3 bg-white border-t border-slate-200 flex gap-2">

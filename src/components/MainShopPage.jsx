@@ -3,6 +3,7 @@ import { Store, Plus, Sparkles, ArrowRight, Trash2, Image, ShieldCheck } from 'l
 
 export default function MainShopPage({ shops, onSelectShop, onAddShop, onDeleteShop }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formError, setFormError] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     id: `MS00${shops.length + 1}`,
@@ -28,14 +29,24 @@ export default function MainShopPage({ shops, onSelectShop, onAddShop, onDeleteS
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.name.trim()) return;
-    onAddShop(formData);
+    if (e && e.preventDefault) e.preventDefault();
+    setFormError('');
+    if (!formData.name || !formData.name.trim()) {
+      setFormError('Please enter Importer Shop Name before saving');
+      return;
+    }
+    const resolvedId = formData.id?.trim() || `MS00${shops.length + 1}`;
+    onAddShop({
+      ...formData,
+      id: resolvedId,
+      name: formData.name.trim()
+    });
     setFormData({
       name: '',
       id: `MS00${shops.length + 2}`,
       image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60'
     });
+    setFormError('');
     setIsFormOpen(false);
   };
 
@@ -178,7 +189,15 @@ export default function MainShopPage({ shops, onSelectShop, onAddShop, onDeleteS
             </div>
 
             {/* Modal Form Body */}
-            <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto no-scrollbar">
+            <form onSubmit={handleSubmit} noValidate className="p-5 space-y-4 overflow-y-auto no-scrollbar">
+              {/* Form Error Banner */}
+              {formError && (
+                <div className="p-2.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                  <span className="text-red-500 font-bold">⚠️</span>
+                  <span>{formError}</span>
+                </div>
+              )}
+
               {/* Shop Name */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -186,26 +205,27 @@ export default function MainShopPage({ shops, onSelectShop, onAddShop, onDeleteS
                 </label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. LumiCosmetics Wholesale"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (formError) setFormError('');
+                  }}
+                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-medium text-slate-900"
                 />
               </div>
 
               {/* Shop ID */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Shop ID <span className="text-red-500">*</span>
+                  Shop ID
                 </label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. MS001"
                   value={formData.id}
                   onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-medium text-slate-900"
                 />
               </div>
 
@@ -264,13 +284,17 @@ export default function MainShopPage({ shops, onSelectShop, onAddShop, onDeleteS
               <div className="flex gap-2.5 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsFormOpen(false)}
+                  onClick={() => {
+                    setFormError('');
+                    setIsFormOpen(false);
+                  }}
                   className="flex-1 py-2.5 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleSubmit}
                   className="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-500/20 transition-all active:scale-98"
                 >
                   Save & Add Shop

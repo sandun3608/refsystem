@@ -1107,6 +1107,7 @@ export default function AdminPortalPage({
                   onChange={(e) => setEditingRep({ ...editingRep, shopId: e.target.value })}
                   className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500"
                 >
+                  <option value="">Common / All Shops</option>
                   {shops.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
@@ -1180,6 +1181,7 @@ export default function AdminPortalPage({
                   name="repShopId"
                   className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500"
                 >
+                  <option value="">Common / All Shops</option>
                   {shops.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
@@ -1257,6 +1259,7 @@ export default function AdminPortalPage({
                   onChange={(e) => setEditingCustomer({ ...editingCustomer, shopId: e.target.value })}
                   className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-purple-500"
                 >
+                  <option value="">Common / All Shops</option>
                   {shops.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
@@ -1342,6 +1345,7 @@ export default function AdminPortalPage({
                   name="custShopId"
                   className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-purple-500"
                 >
+                  <option value="">Common / All Shops</option>
                   {shops.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}

@@ -184,21 +184,21 @@ export default function App() {
     return false;
   };
 
-  // Scoped Data for Active Main Shop (Complete Multi-Tenant Isolation)
+  // Scoped Data for Active Main Shop (Complete Multi-Tenant Isolation for products and orders)
   const currentShopProducts = React.useMemo(() => {
     if (!activeMainShop) return [];
     return products.filter(p => isShopOwner(p.shopId));
   }, [products, activeMainShop, shops]);
 
+  // Delivery reps are shared globally across all importer shops
   const currentShopReps = React.useMemo(() => {
-    if (!activeMainShop) return [];
-    return reps.filter(r => isShopOwner(r.shopId));
-  }, [reps, activeMainShop, shops]);
+    return reps;
+  }, [reps]);
 
+  // Customer retail shops are shared globally across all importer shops
   const currentShopCustomers = React.useMemo(() => {
-    if (!activeMainShop) return [];
-    return customers.filter(c => isShopOwner(c.shopId));
-  }, [customers, activeMainShop, shops]);
+    return customers;
+  }, [customers]);
 
   const currentShopOrders = React.useMemo(() => {
     if (!activeMainShop) return [];
