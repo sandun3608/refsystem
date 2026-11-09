@@ -654,7 +654,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-200/90 flex items-center justify-center p-0 md:p-4 select-none overflow-x-hidden">
+    <div className="min-h-screen bg-slate-200/90 flex items-center justify-center p-0 md:p-4 overflow-x-hidden">
       
       {/* 
         iPhone 17 Pro Frame Container:
