@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Plus, 
   FileSpreadsheet, 
@@ -19,7 +19,8 @@ import {
   UploadCloud,
   CheckCircle2,
   Camera,
-  Upload
+  Upload,
+  ArrowLeft
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -54,6 +55,24 @@ export default function ProductManagePage({
   // Category search inside category modal
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
+
+  // Lock background body scroll completely when modals are open
+  useEffect(() => {
+    if (isAddModalOpen || isEditModalOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isAddModalOpen, isEditModalOpen]);
 
   // Product Form state (Add & Edit)
   const initialFormState = {
@@ -682,43 +701,60 @@ export default function ProductManagePage({
         className="hidden"
       />
 
-      {/* MODAL 1: ADD NEW PRODUCT */}
+      {/* MODAL 1: ADD NEW PRODUCT (LOCKED, IMMOBILE, FULL-SCREEN APP VIEW) */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]">
-            
-            {/* Sticky Header */}
-            <div className="flex-shrink-0 p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Plus className="w-5 h-5 stroke-[2.5]" />
-                <h3 className="text-sm font-bold">Add New Cosmetic Product</h3>
-              </div>
-              <button 
+        <div className="fixed inset-0 z-50 bg-[#f8fafc] flex flex-col w-full max-w-md mx-auto h-[100dvh] overflow-hidden overscroll-none touch-pan-y animate-in fade-in duration-150">
+          
+          {/* Locked Top Header */}
+          <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-slate-200/90 flex items-center justify-between safe-top shadow-2xs">
+            <div className="flex items-center space-x-2.5">
+              <button
                 type="button"
                 onClick={() => {
                   setFormError('');
                   setIsAddModalOpen(false);
-                }} 
-                className="w-7 h-7 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors"
+                }}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center active:scale-95 transition-all"
+                title="Back to Products"
               >
-                ✕
+                <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
               </button>
+              <div>
+                <h3 className="text-sm font-black text-slate-900 leading-tight">Add New Product</h3>
+                <p className="text-[10px] text-slate-400 font-semibold">SKU Details & Inventory</p>
+              </div>
             </div>
 
-            {/* Scrollable Form Body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 no-scrollbar">
-              
-              {/* Form Validation Error Banner */}
-              {formError && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-2 animate-in fade-in">
-                  <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                  <span>{formError}</span>
-                </div>
-              )}
+            <button
+              type="button"
+              onClick={handleSaveAdd}
+              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-xl shadow-xs shadow-blue-500/25 transition-all flex items-center gap-1.5"
+            >
+              <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Save</span>
+            </button>
+          </div>
+
+          {/* Locked Vertical Scroll Content (Zero Horizontal Drift) */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 space-y-3.5 overscroll-contain no-scrollbar">
+            
+            {/* Form Validation Error Banner */}
+            {formError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-2xl flex items-center gap-2 animate-in fade-in">
+                <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
+
+            {/* CARD 1: Basic Information */}
+            <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
+                1. Product Information
+              </span>
 
               {/* Product Name */}
               <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">Product Name *</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Product Name *</label>
                 <input
                   type="text"
                   placeholder="e.g. L'Oreal Serum 30ml"
@@ -727,38 +763,34 @@ export default function ProductManagePage({
                     setFormData({ ...formData, name: e.target.value });
                     if (formError) setFormError('');
                   }}
-                  className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-blue-500 transition-colors font-medium text-slate-800"
+                  className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-blue-500 transition-colors font-medium text-slate-900"
                 />
               </div>
 
               {/* Brand / Category */}
               <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">Brand / Category</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Brand / Category</label>
                 <select
                   value={formData.brand}
                   onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                  className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800"
+                  className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800"
                 >
                   {(categories.length > 0 ? categories : ['Skincare', 'Lipstick & Lip Care', 'General']).map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
               </div>
+            </div>
 
-              {/* Cost Price & Sale Price */}
-              <div className="grid grid-cols-2 gap-2">
+            {/* CARD 2: Pricing & Stock */}
+            <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
+                2. Pricing & Quantities
+              </span>
+
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Cost Price (Rs.)</label>
-                  <input
-                    type="number"
-                    placeholder="e.g. 2500"
-                    value={formData.costPrice}
-                    onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
-                    className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Sale Price (Rs.) *</label>
+                  <label className="text-xs font-bold text-blue-700 block mb-1">Sale Price (Rs.) *</label>
                   <input
                     type="number"
                     placeholder="e.g. 3800"
@@ -767,186 +799,209 @@ export default function ProductManagePage({
                       setFormData({ ...formData, salePrice: e.target.value });
                       if (formError) setFormError('');
                     }}
-                    className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-blue-700"
+                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-blue-50/40 border border-blue-200 rounded-xl outline-none font-bold text-blue-700 focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Cost Price (Rs.)</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 2500"
+                    value={formData.costPrice}
+                    onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
+                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-900"
                   />
                 </div>
               </div>
 
-              {/* Stock & Low Stock Threshold */}
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Initial Stock</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Current Stock</label>
                   <input
                     type="number"
                     placeholder="e.g. 50"
                     value={formData.stock}
                     onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                    className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-800"
+                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-red-600 block mb-1">Low Stock Count</label>
+                  <label className="text-xs font-bold text-red-600 block mb-1">Low Stock Alert Count</label>
                   <input
                     type="number"
-                    placeholder="Alert below e.g. 10"
+                    placeholder="e.g. 10"
                     value={formData.lowStockThreshold}
                     onChange={(e) => setFormData({ ...formData, lowStockThreshold: e.target.value })}
-                    className="w-full px-3 py-2.5 text-xs bg-red-50/50 border border-red-200 rounded-xl outline-none font-bold text-red-700"
+                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-red-50/50 border border-red-200 rounded-xl outline-none font-bold text-red-700"
                   />
                 </div>
               </div>
+            </div>
 
-              {/* Batch ID & Expiry Date */}
-              <div className="grid grid-cols-2 gap-2">
+            {/* CARD 3: Batch & Expiry */}
+            <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
+                3. Batch & Expiry Date
+              </span>
+
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Batch ID</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Batch ID</label>
                   <input
                     type="text"
                     value={formData.batchId}
                     onChange={(e) => setFormData({ ...formData, batchId: e.target.value })}
-                    className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-800"
+                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Expiry Date</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Expiry Date</label>
                   <input
                     type="date"
                     value={formData.expiryDate}
                     onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                    className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-800"
+                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-900"
                   />
                 </div>
               </div>
-
-              {/* Product Image: Device Upload, Camera, Presets & URL */}
-              <div className="pt-1">
-                <label className="text-[11px] font-bold text-slate-700 block mb-1.5">Product Image (Device Upload)</label>
-                
-                {/* Browse from Device Button */}
-                <button
-                  type="button"
-                  onClick={() => addImageInputRef.current?.click()}
-                  className="w-full py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/90 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-2xs"
-                >
-                  <Camera className="w-4 h-4 text-blue-600" />
-                  <span>Choose Photo from Device / Gallery</span>
-                </button>
-
-                {/* Selected Preview Box */}
-                <div className="mt-2 flex items-center gap-2.5 p-2 bg-slate-50 border border-slate-200/80 rounded-xl">
-                  <img
-                    src={formData.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60'}
-                    alt="Preview"
-                    className="w-12 h-12 rounded-lg object-cover border border-slate-200 flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <input
-                      type="text"
-                      placeholder="Or paste image URL..."
-                      value={formData.image}
-                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                      className="w-full px-2 py-1.5 text-[11px] bg-white border border-slate-200 rounded-lg outline-none text-slate-700"
-                    />
-                    <span className="text-[9px] text-slate-400 block mt-0.5 truncate">
-                      Device photo uploaded or web link
-                    </span>
-                  </div>
-                </div>
-
-                {/* Quick cosmetic preset chips */}
-                <div className="mt-2">
-                  <span className="text-[10px] text-slate-400 font-medium block mb-1">Quick Sample Presets:</span>
-                  <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                    {[
-                      { name: 'Lipstick', url: 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400&auto=format&fit=crop&q=60' },
-                      { name: 'Serum', url: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&auto=format&fit=crop&q=60' },
-                      { name: 'Mascara', url: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=400&auto=format&fit=crop&q=60' },
-                      { name: 'Cream', url: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60' },
-                      { name: 'Perfume', url: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=400&auto=format&fit=crop&q=60' }
-                    ].map((preset) => (
-                      <button
-                        key={preset.name}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, image: preset.url })}
-                        className={`flex-shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
-                          formData.image === preset.url
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        {preset.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-
             </div>
 
-            {/* Sticky Action Footer - Always visible above phone viewport */}
-            <div className="flex-shrink-0 p-3 bg-white border-t border-slate-100 flex gap-2">
+            {/* CARD 4: Product Image (Device Upload) */}
+            <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
+                4. Product Photo
+              </span>
+
+              {/* Big Device Upload Button */}
               <button
                 type="button"
-                onClick={() => {
-                  setFormError('');
-                  setIsAddModalOpen(false);
-                }}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl active:scale-95 transition-all"
+                onClick={() => addImageInputRef.current?.click()}
+                className="w-full py-3 px-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-blue-700 border border-blue-200/90 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-xs"
               >
-                Cancel
+                <Camera className="w-4 h-4 text-blue-600" />
+                <span>Choose Photo from Device / Gallery</span>
               </button>
-              <button
-                type="button"
-                onClick={handleSaveAdd}
-                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-1.5"
-              >
-                <Check className="w-4 h-4 stroke-[2.5]" />
-                <span>Save to Inventory</span>
-              </button>
+
+              {/* Selected Preview Box */}
+              <div className="flex items-center gap-2.5 p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl">
+                <img
+                  src={formData.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60'}
+                  alt="Preview"
+                  className="w-13 h-13 rounded-xl object-cover border border-slate-200 flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <input
+                    type="text"
+                    placeholder="Or paste web image link..."
+                    value={formData.image}
+                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                    className="w-full px-2.5 py-2 text-[16px] sm:text-[11px] bg-white border border-slate-200 rounded-lg outline-none text-slate-700"
+                  />
+                  <span className="text-[9px] text-slate-400 block mt-1 truncate">
+                    Photo from device or internet link
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick cosmetic preset chips */}
+              <div>
+                <span className="text-[10px] text-slate-400 font-medium block mb-1.5">Quick Presets:</span>
+                <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                  {[
+                    { name: 'Lipstick', url: 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400&auto=format&fit=crop&q=60' },
+                    { name: 'Serum', url: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&auto=format&fit=crop&q=60' },
+                    { name: 'Mascara', url: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=400&auto=format&fit=crop&q=60' },
+                    { name: 'Cream', url: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60' },
+                    { name: 'Perfume', url: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=400&auto=format&fit=crop&q=60' }
+                  ].map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, image: preset.url })}
+                      className={`flex-shrink-0 px-2.5 py-1.5 rounded-xl text-[10px] font-bold border transition-all ${
+                        formData.image === preset.url
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      {preset.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
           </div>
+
+          {/* Locked Bottom Action Bar - Solid, Immobile */}
+          <div className="flex-shrink-0 p-3 bg-white border-t border-slate-200 safe-bottom">
+            <button
+              type="button"
+              onClick={handleSaveAdd}
+              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-2xl shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2"
+            >
+              <Check className="w-4 h-4 stroke-[2.5]" />
+              <span>Save to Inventory</span>
+            </button>
+          </div>
+
         </div>
       )}
 
-      {/* MODAL 2: EDIT PRODUCT */}
+      {/* MODAL 2: EDIT PRODUCT (LOCKED, IMMOBILE, FULL-SCREEN APP VIEW) */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]">
-            
-            {/* Sticky Header */}
-            <div className="flex-shrink-0 p-4 bg-slate-900 text-white flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Edit3 className="w-5 h-5 text-blue-400 stroke-[2.5]" />
-                <h3 className="text-sm font-bold">Edit Product Details</h3>
-              </div>
-              <button 
+        <div className="fixed inset-0 z-50 bg-[#f8fafc] flex flex-col w-full max-w-md mx-auto h-[100dvh] overflow-hidden overscroll-none touch-pan-y animate-in fade-in duration-150">
+          
+          {/* Locked Top Header */}
+          <div className="flex-shrink-0 px-4 py-3 bg-slate-900 text-white flex items-center justify-between safe-top shadow-md">
+            <div className="flex items-center space-x-2.5">
+              <button
                 type="button"
                 onClick={() => {
                   setFormError('');
                   setIsEditModalOpen(false);
-                }} 
-                className="w-7 h-7 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors"
+                }}
+                className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center active:scale-95 transition-all"
+                title="Back to Products"
               >
-                ✕
+                <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
               </button>
+              <div>
+                <h3 className="text-sm font-black text-white leading-tight">Edit Product Details</h3>
+                <p className="text-[10px] text-slate-400 font-semibold">Modify SKU & Stock</p>
+              </div>
             </div>
 
-            {/* Scrollable Form Body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 no-scrollbar">
-              
-              {/* Form Validation Error Banner */}
-              {formError && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-2 animate-in fade-in">
-                  <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                  <span>{formError}</span>
-                </div>
-              )}
+            <button
+              type="button"
+              onClick={handleSaveEdit}
+              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-xl shadow-xs shadow-blue-500/25 transition-all flex items-center gap-1.5"
+            >
+              <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Update</span>
+            </button>
+          </div>
+
+          {/* Locked Vertical Scroll Content */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 space-y-3.5 overscroll-contain no-scrollbar">
+            
+            {/* Form Validation Error Banner */}
+            {formError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-2xl flex items-center gap-2 animate-in fade-in">
+                <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
+
+            {/* CARD 1: Basic Information */}
+            <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
+                1. Product Information
+              </span>
 
               {/* Product Name */}
               <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">Product Name *</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Product Name *</label>
                 <input
                   type="text"
                   value={formData.name}
@@ -954,37 +1009,34 @@ export default function ProductManagePage({
                     setFormData({ ...formData, name: e.target.value });
                     if (formError) setFormError('');
                   }}
-                  className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-blue-500 font-medium text-slate-800"
+                  className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-blue-500 transition-colors font-medium text-slate-900"
                 />
               </div>
 
               {/* Brand / Category */}
               <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">Brand / Category</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Brand / Category</label>
                 <select
                   value={formData.brand}
                   onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                  className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800"
+                  className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-800"
                 >
                   {(categories.length > 0 ? categories : ['Skincare', 'Lipstick & Lip Care', 'General']).map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
               </div>
+            </div>
 
-              {/* Cost Price & Sale Price */}
-              <div className="grid grid-cols-2 gap-2">
+            {/* CARD 2: Pricing & Stock */}
+            <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
+                2. Pricing & Quantities
+              </span>
+
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Cost Price (Rs.)</label>
-                  <input
-                    type="number"
-                    value={formData.costPrice}
-                    onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
-                    className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Sale Price (Rs.) *</label>
+                  <label className="text-xs font-bold text-blue-700 block mb-1">Sale Price (Rs.) *</label>
                   <input
                     type="number"
                     value={formData.salePrice}
@@ -992,142 +1044,149 @@ export default function ProductManagePage({
                       setFormData({ ...formData, salePrice: e.target.value });
                       if (formError) setFormError('');
                     }}
-                    className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-blue-600"
+                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-blue-50/40 border border-blue-200 rounded-xl outline-none font-bold text-blue-700 focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Cost Price (Rs.)</label>
+                  <input
+                    type="number"
+                    value={formData.costPrice}
+                    onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
+                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-900"
                   />
                 </div>
               </div>
 
-              {/* Stock & Low Stock Threshold */}
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Stock</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Current Stock</label>
                   <input
                     type="number"
                     value={formData.stock}
                     onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                    className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-800"
+                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-red-600 block mb-1">Low Stock Count</label>
+                  <label className="text-xs font-bold text-red-600 block mb-1">Low Stock Alert Count</label>
                   <input
                     type="number"
                     value={formData.lowStockThreshold}
                     onChange={(e) => setFormData({ ...formData, lowStockThreshold: e.target.value })}
-                    className="w-full px-3 py-2.5 text-xs bg-red-50/50 border border-red-200 rounded-xl outline-none font-bold text-red-700"
+                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-red-50/50 border border-red-200 rounded-xl outline-none font-bold text-red-700"
                   />
                 </div>
               </div>
+            </div>
 
-              {/* Batch ID & Expiry Date */}
-              <div className="grid grid-cols-2 gap-2">
+            {/* CARD 3: Batch & Expiry */}
+            <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
+                3. Batch & Expiry Date
+              </span>
+
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Batch ID</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Batch ID</label>
                   <input
                     type="text"
                     value={formData.batchId}
                     onChange={(e) => setFormData({ ...formData, batchId: e.target.value })}
-                    className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-800"
+                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Expiry Date</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Expiry Date</label>
                   <input
                     type="date"
                     value={formData.expiryDate}
                     onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                    className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-800"
+                    className="w-full px-3.5 py-2.5 text-[16px] sm:text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-900"
                   />
                 </div>
               </div>
-
-              {/* Image Selection with Device Upload */}
-              <div className="pt-1">
-                <label className="text-[11px] font-bold text-slate-700 block mb-1.5">Product Image (Device Upload)</label>
-                
-                <button
-                  type="button"
-                  onClick={() => editImageInputRef.current?.click()}
-                  className="w-full py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/90 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-2xs"
-                >
-                  <Camera className="w-4 h-4 text-blue-600" />
-                  <span>Choose Photo from Device / Gallery</span>
-                </button>
-
-                <div className="mt-2 flex items-center gap-2.5 p-2 bg-slate-50 border border-slate-200/80 rounded-xl">
-                  <img
-                    src={formData.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60'}
-                    alt="Preview"
-                    className="w-12 h-12 rounded-lg object-cover border border-slate-200 flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <input
-                      type="text"
-                      placeholder="Or paste image URL..."
-                      value={formData.image}
-                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                      className="w-full px-2 py-1.5 text-[11px] bg-white border border-slate-200 rounded-lg outline-none text-slate-700"
-                    />
-                    <span className="text-[9px] text-slate-400 block mt-0.5 truncate">
-                      Device photo uploaded or web link
-                    </span>
-                  </div>
-                </div>
-
-                {/* Quick cosmetic preset chips */}
-                <div className="mt-2">
-                  <span className="text-[10px] text-slate-400 font-medium block mb-1">Quick Sample Presets:</span>
-                  <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                    {[
-                      { name: 'Lipstick', url: 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400&auto=format&fit=crop&q=60' },
-                      { name: 'Serum', url: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&auto=format&fit=crop&q=60' },
-                      { name: 'Mascara', url: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=400&auto=format&fit=crop&q=60' },
-                      { name: 'Cream', url: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60' },
-                      { name: 'Perfume', url: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=400&auto=format&fit=crop&q=60' }
-                    ].map((preset) => (
-                      <button
-                        key={preset.name}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, image: preset.url })}
-                        className={`flex-shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
-                          formData.image === preset.url
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        {preset.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-
             </div>
 
-            {/* Sticky Action Footer */}
-            <div className="flex-shrink-0 p-3 bg-white border-t border-slate-100 flex gap-2">
+            {/* CARD 4: Product Image */}
+            <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
+                4. Product Photo
+              </span>
+
+              {/* Big Device Upload Button */}
               <button
                 type="button"
-                onClick={() => {
-                  setFormError('');
-                  setIsEditModalOpen(false);
-                }}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl active:scale-95 transition-all"
+                onClick={() => editImageInputRef.current?.click()}
+                className="w-full py-3 px-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-blue-700 border border-blue-200/90 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-xs"
               >
-                Cancel
+                <Camera className="w-4 h-4 text-blue-600" />
+                <span>Choose Photo from Device / Gallery</span>
               </button>
-              <button
-                type="button"
-                onClick={handleSaveEdit}
-                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-1.5"
-              >
-                <Check className="w-4 h-4 stroke-[2.5]" />
-                <span>Update Product</span>
-              </button>
+
+              {/* Selected Preview Box */}
+              <div className="flex items-center gap-2.5 p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl">
+                <img
+                  src={formData.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60'}
+                  alt="Preview"
+                  className="w-13 h-13 rounded-xl object-cover border border-slate-200 flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <input
+                    type="text"
+                    placeholder="Or paste web image link..."
+                    value={formData.image}
+                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                    className="w-full px-2.5 py-2 text-[16px] sm:text-[11px] bg-white border border-slate-200 rounded-lg outline-none text-slate-700"
+                  />
+                  <span className="text-[9px] text-slate-400 block mt-1 truncate">
+                    Photo from device or internet link
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick cosmetic preset chips */}
+              <div>
+                <span className="text-[10px] text-slate-400 font-medium block mb-1.5">Quick Presets:</span>
+                <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                  {[
+                    { name: 'Lipstick', url: 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400&auto=format&fit=crop&q=60' },
+                    { name: 'Serum', url: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&auto=format&fit=crop&q=60' },
+                    { name: 'Mascara', url: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=400&auto=format&fit=crop&q=60' },
+                    { name: 'Cream', url: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60' },
+                    { name: 'Perfume', url: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=400&auto=format&fit=crop&q=60' }
+                  ].map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, image: preset.url })}
+                      className={`flex-shrink-0 px-2.5 py-1.5 rounded-xl text-[10px] font-bold border transition-all ${
+                        formData.image === preset.url
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      {preset.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
           </div>
+
+          {/* Locked Bottom Action Bar */}
+          <div className="flex-shrink-0 p-3 bg-white border-t border-slate-200 safe-bottom">
+            <button
+              type="button"
+              onClick={handleSaveEdit}
+              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-2xl shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2"
+            >
+              <Check className="w-4 h-4 stroke-[2.5]" />
+              <span>Update Product Details</span>
+            </button>
+          </div>
+
         </div>
       )}
 
