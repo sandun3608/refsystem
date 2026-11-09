@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, ArrowLeft, Search, Smartphone, Monitor, LogOut } from 'lucide-react';
+import { Bell, ArrowLeft, Search, Smartphone, Monitor, LogOut, Shield } from 'lucide-react';
 
 export default function Header({ 
   currentScreen, 
@@ -14,10 +14,14 @@ export default function Header({
   isPhoneFrame,
   onToggleFrame,
   onLogout,
+  onOpenAdmin,
   activeMainShop,
   activeRep,
   activeCustomer
 }) {
+  // Hide main app header when in full Admin Portal view
+  if (currentScreen === 'admin') return null;
+
   const showSearch = currentScreen === 'dashboard' || currentScreen === 'products' || currentScreen === 'orders';
   const showBack = !['mainShops', 'dashboard'].includes(currentScreen);
   const isSessionActive = Boolean(activeCustomer && (currentScreen === 'dashboard' || currentScreen === 'checkout'));
@@ -118,6 +122,18 @@ export default function Header({
                 </>
               )}
             </button>
+
+            {/* Admin Portal Button - Placed right next to Notifications on 1st page ('mainShops') */}
+            {currentScreen === 'mainShops' && onOpenAdmin && (
+              <button
+                onClick={onOpenAdmin}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-black text-slate-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 active:scale-95 rounded-xl border border-amber-500/50 shadow-xs transition-all flex-shrink-0"
+                title="Admin Security Portal"
+              >
+                <Shield className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
+                <span className="text-[11px] font-black tracking-tight">Admin</span>
+              </button>
+            )}
 
             {/* Notifications button */}
             <button

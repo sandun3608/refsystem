@@ -9,8 +9,8 @@ export default function BottomNav({
   activeCustomer,
   unreadCount = 0
 }) {
-  // Never render 5-item bottom bar on the initial Main Shops landing page
-  if (currentScreen === 'mainShops') return null;
+  // Never render 5-item bottom bar on the initial Main Shops landing page or Admin Portal
+  if (currentScreen === 'mainShops' || currentScreen === 'admin') return null;
 
   const [isOpen, setIsOpen] = useState(false);
   const navRef = useRef(null);

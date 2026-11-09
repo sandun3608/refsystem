@@ -11,6 +11,8 @@ import ProductManagePage from './components/ProductManagePage';
 import ReportsPage from './components/ReportsPage';
 import SettingsPage from './components/SettingsPage';
 import ShopDetailsPage from './components/ShopDetailsPage';
+import AdminPortalPage from './components/AdminPortalPage';
+import AdminLoginModal from './components/AdminLoginModal';
 import NotificationsModal from './components/NotificationsModal';
 import BottomNav from './components/BottomNav';
 import { api } from './api';
@@ -31,13 +33,17 @@ export default function App() {
   const [activeCustomer, setActiveCustomer] = useState(null);
 
   // Current Screen
-  // 'mainShops' | 'reps' | 'customers' | 'dashboard' | 'checkout' | 'orders' | 'products' | 'reports' | 'settings' | 'shopDetails'
+  // 'mainShops' | 'reps' | 'customers' | 'dashboard' | 'checkout' | 'orders' | 'products' | 'reports' | 'settings' | 'shopDetails' | 'admin'
   const [currentScreen, setCurrentScreen] = useState('mainShops');
   
   // Navigation Sidebar & Modals
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Admin Security & Portal States
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
 
   // Selected Products for Order: { [productId]: { quantity: number, discount: number } }
   const [selectedItems, setSelectedItems] = useState({});
@@ -243,6 +249,8 @@ export default function App() {
         return { title: 'System Settings', subtitle: 'Reps, shops, and backups' };
       case 'shopDetails':
         return { title: 'Active Session Route', subtitle: 'Current distribution path' };
+      case 'admin':
+        return { title: 'Executive Control Hub', subtitle: 'Global System Management' };
       default:
         return { title: activeMainShop?.name || 'LumiRep Pro', subtitle: 'Distribution System' };
     }
@@ -252,7 +260,10 @@ export default function App() {
 
   // Navigation Back Handlers
   const handleBack = () => {
-    if (currentScreen === 'reps') {
+    if (currentScreen === 'admin') {
+      setCurrentScreen('mainShops');
+    }
+    else if (currentScreen === 'reps') {
       setActiveMainShop(null);
       setCurrentScreen('mainShops');
     }
@@ -515,6 +526,57 @@ export default function App() {
     }
   };
 
+  // Admin Management Handlers
+  const handleUpdateShop = async (shopId, updatedData) => {
+    const updated = shops.map(s => s.id === shopId ? { ...s, ...updatedData } : s);
+    setShops(updated);
+    saveToLocalStorage({ shops: updated });
+    try {
+      await api.updateShop(shopId, updatedData);
+    } catch (err) {
+      console.warn('Backend sync error on update shop', err);
+    }
+  };
+
+  const handleUpdateRep = async (repId, updatedData) => {
+    const updated = reps.map(r => r.id === repId ? { ...r, ...updatedData } : r);
+    setReps(updated);
+    saveToLocalStorage({ reps: updated });
+    try {
+      await api.updateRep(repId, updatedData);
+    } catch (err) {
+      console.warn('Backend sync error on update rep', err);
+    }
+  };
+
+  const handleUpdateCustomer = async (custId, updatedData) => {
+    const updated = customers.map(c => c.id === custId ? { ...c, ...updatedData } : c);
+    setCustomers(updated);
+    saveToLocalStorage({ customers: updated });
+    try {
+      await api.updateCustomer(custId, updatedData);
+    } catch (err) {
+      console.warn('Backend sync error on update customer', err);
+    }
+  };
+
+  // Open & Exit Admin Portal
+  const handleOpenAdmin = () => {
+    if (isAdminAuthenticated) {
+      setCurrentScreen('admin');
+    } else {
+      setIsAdminLoginOpen(true);
+    }
+  };
+
+  const handleExitAdmin = () => {
+    setIsAdminAuthenticated(false);
+    setActiveMainShop(null);
+    setActiveRep(null);
+    setActiveCustomer(null);
+    setCurrentScreen('mainShops');
+  };
+
   // Products & Categories
   const handleAddProduct = async (productData) => {
     const shopId = productData.shopId || activeMainShop?.id || '';
@@ -764,6 +826,7 @@ export default function App() {
           isPhoneFrame={isPhoneFrame}
           onToggleFrame={() => setIsPhoneFrame(!isPhoneFrame)}
           onLogout={handleLogout}
+          onOpenAdmin={handleOpenAdmin}
           activeMainShop={activeMainShop}
           activeRep={activeRep}
           activeCustomer={activeCustomer}
@@ -772,34 +835,31 @@ export default function App() {
         {/* Main Content View Container */}
         <main className="flex-1 overflow-y-auto no-scrollbar relative bg-[#f8fafc]">
           
-          {/* Page 1: Main Importer Shop Selection */}
+          {/* Page 1: Main Importer Shop Selection (Delete is restricted to Admin Portal only) */}
           {currentScreen === 'mainShops' && (
             <MainShopPage
               shops={shops}
               onSelectShop={handleSelectMainShop}
               onAddShop={handleAddShop}
-              onDeleteShop={handleDeleteShop}
             />
           )}
 
-          {/* Page 2: Delivery Reps Selection ("Ada delivery awe kawda?") */}
+          {/* Page 2: Delivery Reps Selection (Delete is restricted to Admin Portal only) */}
           {currentScreen === 'reps' && (
             <RepSelectionPage
               reps={currentShopReps}
               onSelectRep={handleSelectRep}
               onAddRep={handleAddRep}
-              onDeleteRep={handleDeleteRep}
               mainShop={activeMainShop}
             />
           )}
 
-          {/* Page 3: Customer Shop Selection ("Badu dana shop thoranna") */}
+          {/* Page 3: Customer Shop Selection (Delete is restricted to Admin Portal only) */}
           {currentScreen === 'customers' && (
             <CustomerShopPage
               customers={currentShopCustomers}
               onSelectCustomer={handleSelectCustomer}
               onAddCustomer={handleAddCustomer}
-              onDeleteCustomer={handleDeleteCustomer}
               mainShop={activeMainShop}
               rep={activeRep}
             />
@@ -917,6 +977,27 @@ export default function App() {
             />
           )}
 
+          {/* Master Admin Portal Screen */}
+          {currentScreen === 'admin' && (
+            <AdminPortalPage
+              shops={shops}
+              reps={reps}
+              customers={customers}
+              orders={orders}
+              products={products}
+              onUpdateShop={handleUpdateShop}
+              onDeleteShop={handleDeleteShop}
+              onAddShop={handleAddShop}
+              onUpdateRep={handleUpdateRep}
+              onDeleteRep={handleDeleteRep}
+              onAddRep={handleAddRep}
+              onUpdateCustomer={handleUpdateCustomer}
+              onDeleteCustomer={handleDeleteCustomer}
+              onAddCustomer={handleAddCustomer}
+              onExitAdmin={handleExitAdmin}
+            />
+          )}
+
         </main>
 
         {/* iPhone Home Indicator bar at bottom */}
@@ -970,6 +1051,16 @@ export default function App() {
           orders={currentShopOrders}
           products={currentShopProducts}
           onSelectOrder={handleSelectOrderFromNotifications}
+        />
+
+        {/* Master Admin Authentication Modal */}
+        <AdminLoginModal
+          isOpen={isAdminLoginOpen}
+          onClose={() => setIsAdminLoginOpen(false)}
+          onLoginSuccess={() => {
+            setIsAdminAuthenticated(true);
+            setCurrentScreen('admin');
+          }}
         />
 
       </div>

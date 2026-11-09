@@ -108,6 +108,24 @@ app.delete('/api/shops/:id', async (req, res) => {
   }
 });
 
+// Update Shop
+app.put('/api/shops/:id', async (req, res) => {
+  try {
+    const db = await readDb();
+    const idx = db.shops.findIndex(s => s.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Shop not found' });
+    db.shops[idx] = {
+      ...db.shops[idx],
+      ...req.body,
+      id: req.params.id // lock id
+    };
+    await writeDb(db);
+    res.json(db.shops[idx]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Add Rep
 app.post('/api/reps', async (req, res) => {
   try {
@@ -137,6 +155,24 @@ app.delete('/api/reps/:id', async (req, res) => {
     db.reps = db.reps.filter(r => r.id !== req.params.id);
     await writeDb(db);
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update Rep
+app.put('/api/reps/:id', async (req, res) => {
+  try {
+    const db = await readDb();
+    const idx = db.reps.findIndex(r => r.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Rep not found' });
+    db.reps[idx] = {
+      ...db.reps[idx],
+      ...req.body,
+      id: req.params.id // lock id
+    };
+    await writeDb(db);
+    res.json(db.reps[idx]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -173,6 +209,24 @@ app.delete('/api/customers/:id', async (req, res) => {
     db.customers = db.customers.filter(c => c.id !== req.params.id);
     await writeDb(db);
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update Customer Shop
+app.put('/api/customers/:id', async (req, res) => {
+  try {
+    const db = await readDb();
+    const idx = db.customers.findIndex(c => c.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Customer shop not found' });
+    db.customers[idx] = {
+      ...db.customers[idx],
+      ...req.body,
+      id: req.params.id // lock id
+    };
+    await writeDb(db);
+    res.json(db.customers[idx]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

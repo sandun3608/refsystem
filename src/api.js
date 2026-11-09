@@ -40,6 +40,16 @@ export const api = {
     return await res.json();
   },
 
+  // Update Shop
+  async updateShop(id, shop) {
+    const res = await fetch(`${API_BASE}/shops/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(shop)
+    });
+    return await res.json();
+  },
+
   // Delete Shop
   async deleteShop(id) {
     const res = await fetch(`${API_BASE}/shops/${id}`, { method: 'DELETE' });
@@ -56,6 +66,16 @@ export const api = {
     return await res.json();
   },
 
+  // Update Rep
+  async updateRep(id, rep) {
+    const res = await fetch(`${API_BASE}/reps/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(rep)
+    });
+    return await res.json();
+  },
+
   // Delete Rep
   async deleteRep(id) {
     const res = await fetch(`${API_BASE}/reps/${id}`, { method: 'DELETE' });
@@ -66,6 +86,16 @@ export const api = {
   async addCustomer(customer) {
     const res = await fetch(`${API_BASE}/customers`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(customer)
+    });
+    return await res.json();
+  },
+
+  // Update Customer Shop
+  async updateCustomer(id, customer) {
+    const res = await fetch(`${API_BASE}/customers/${id}`, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(customer)
     });

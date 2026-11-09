@@ -37,7 +37,7 @@ export default function Sidebar({
     { id: 'shopDetails', label: 'Shop Details', icon: Store, badge: null }
   ];
 
-  if (!isOpen || currentScreen === 'mainShops') return null;
+  if (!isOpen || currentScreen === 'mainShops' || currentScreen === 'admin') return null;
 
   return (
     <div className="fixed inset-0 z-50 flex">
