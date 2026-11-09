@@ -49,7 +49,7 @@ export default function RepSelectionPage({ reps, onSelectRep, onAddRep, onDelete
   );
 
   return (
-    <div className="min-h-[85vh] flex flex-col justify-between p-4 space-y-5">
+    <div className="p-3 space-y-3 pb-28 flex flex-col">
       
       {/* Top Banner showing Active Main Shop context */}
       <div className="flex items-center justify-between p-3 bg-blue-50/80 border border-blue-200/80 rounded-2xl">

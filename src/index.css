@@ -1,7 +1,12 @@
 @import "tailwindcss";
 
 @layer base {
-  body {
+  html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+    touch-action: pan-y;
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     background-color: #f8fafc;
     color: #0f172a;

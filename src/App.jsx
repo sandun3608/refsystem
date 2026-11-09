@@ -12,6 +12,7 @@ import ReportsPage from './components/ReportsPage';
 import SettingsPage from './components/SettingsPage';
 import ShopDetailsPage from './components/ShopDetailsPage';
 import NotificationsModal from './components/NotificationsModal';
+import BottomNav from './components/BottomNav';
 import { api } from './api';
 
 export default function App() {
@@ -357,7 +358,7 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen bg-slate-200/90 flex items-center justify-center p-0 md:p-4 select-none`}>
+    <div className="min-h-screen bg-slate-200/90 flex items-center justify-center p-0 md:p-4 select-none overflow-x-hidden">
       
       {/* 
         iPhone 17 Pro Frame Container:
@@ -365,9 +366,9 @@ export default function App() {
       */}
       <div className={`w-full transition-all duration-300 ${
         isPhoneFrame 
-          ? 'max-w-[420px] md:h-[915px] md:rounded-[50px] md:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35)] md:border-[10px] md:border-slate-800'
-          : 'max-w-2xl min-h-screen md:min-h-[90vh] md:rounded-3xl shadow-xl border border-slate-300'
-      } bg-[#f8fafc] flex flex-col overflow-hidden relative`}>
+          ? 'w-full max-w-full md:max-w-[420px] min-h-[100dvh] md:h-[915px] md:rounded-[50px] md:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35)] md:border-[10px] md:border-slate-800'
+          : 'max-w-2xl min-h-[100dvh] md:min-h-[90vh] md:rounded-3xl shadow-xl border border-slate-300'
+      } bg-[#f8fafc] flex flex-col overflow-x-hidden relative`}>
 
         {/* iPhone Dynamic Island & Speaker Notch (visible on phone frame on desktop) */}
         {isPhoneFrame && (
@@ -548,6 +549,19 @@ export default function App() {
             <div className="w-32 h-1 bg-slate-300 rounded-full" />
           </div>
         )}
+
+        {/* Modern Frosted Glass 5-Icon Bottom Tab Bar */}
+        <BottomNav
+          currentScreen={currentScreen}
+          onNavigate={(screenId) => {
+            setCurrentScreen(screenId);
+            setSearchTerm('');
+          }}
+          activeMainShop={activeMainShop}
+          activeRep={activeRep}
+          activeCustomer={activeCustomer}
+          unreadCount={unreadNotificationsCount}
+        />
 
         {/* Side Navigation Drawer (the 3 lines hamburger menu) */}
         <Sidebar

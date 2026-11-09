@@ -40,15 +40,15 @@ export default function MainShopPage({ shops, onSelectShop, onAddShop, onDeleteS
   };
 
   return (
-    <div className="min-h-[85vh] flex flex-col justify-between p-4 space-y-6">
+    <div className="p-3 space-y-3 pb-28">
       
       {/* Top Welcome Hero Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-6 text-white shadow-xl shadow-blue-500/10 text-center flex flex-col items-center justify-center">
-        <div className="relative z-10 space-y-1.5 max-w-xs mx-auto">
-          <h2 className="text-3xl font-black tracking-tight text-white drop-shadow-xs">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-4 text-white shadow-lg shadow-blue-500/10 text-center flex flex-col items-center justify-center">
+        <div className="relative z-10 space-y-1 max-w-xs mx-auto">
+          <h2 className="text-2xl font-black tracking-tight text-white drop-shadow-xs">
             Welcome
           </h2>
-          <p className="text-xs text-blue-100/90 leading-relaxed font-medium">
+          <p className="text-[11px] text-blue-100/90 leading-relaxed font-medium">
             Manage your imported cosmetics inventory, delivery representatives, customer shop orders, and billing in one smooth workflow.
           </p>
         </div>
@@ -59,26 +59,26 @@ export default function MainShopPage({ shops, onSelectShop, onAddShop, onDeleteS
       </div>
 
       {/* Main Center Action: "Add Your Shop" Button */}
-      <div className="flex flex-col items-center justify-center py-2 space-y-3">
+      <div className="flex flex-col items-center justify-center space-y-1.5">
         <button
           onClick={() => setIsFormOpen(true)}
-          className="group relative flex items-center justify-center gap-3 w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl font-bold shadow-lg shadow-blue-500/25 active:scale-98 transition-all duration-200 border border-blue-400/30"
+          className="group relative flex items-center justify-center gap-3 w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl font-bold shadow-md shadow-blue-500/20 active:scale-98 transition-all duration-200 border border-blue-400/30"
         >
-          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Plus className="w-6 h-6 stroke-[2.5]" />
+          <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Plus className="w-5 h-5 stroke-[2.5]" />
           </div>
           <div className="text-left">
-            <span className="block text-sm font-extrabold tracking-wide uppercase text-blue-100 text-[10px]">Step 1</span>
-            <span className="text-base font-bold">Add Your Shop</span>
+            <span className="block text-[9px] font-extrabold tracking-wide uppercase text-blue-100">Step 1</span>
+            <span className="text-sm font-bold">Add Your Shop</span>
           </div>
         </button>
-        <p className="text-[11px] text-slate-500 text-center font-medium">
+        <p className="text-[10px] text-slate-400 text-center font-medium">
           Add your main cosmetic distribution shop or importer warehouse to begin
         </p>
       </div>
 
       {/* Shops List Section */}
-      <div className="space-y-3 flex-1">
+      <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
             <Store className="w-4 h-4 text-blue-600" />

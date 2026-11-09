@@ -60,7 +60,7 @@ export default function CustomerShopPage({
   );
 
   return (
-    <div className="min-h-[85vh] flex flex-col justify-between p-4 space-y-5">
+    <div className="p-3 space-y-3 pb-28 flex flex-col">
       
       {/* Active Session Hierarchy Banner */}
       <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 space-y-2">
