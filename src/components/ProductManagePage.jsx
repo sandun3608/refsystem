@@ -661,6 +661,14 @@ export default function ProductManagePage({
           )}
         </div>
 
+        {filteredProducts.length === 0 && (
+          <div className="text-center py-10 px-4 bg-white rounded-2xl border border-dashed border-slate-300">
+            <FolderPlus className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+            <p className="text-xs font-semibold text-slate-600">No products in this shop catalog yet</p>
+            <p className="text-[11px] text-slate-400 mt-1">Tap "+ Add Product" or "Import Excel" above to stock this shop</p>
+          </div>
+        )}
+
         {filteredProducts.map((product) => {
           const isSelected = bulkSelectedIds.includes(product.id);
           const isLowStock = product.stock <= (product.lowStockThreshold || 10);

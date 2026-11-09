@@ -169,12 +169,42 @@ export default function App() {
     loadData();
   }, []);
 
-  // Compute Unread Notification Count (Cheques & Cash due soon + low stock items)
+  // Helper to check if an entity belongs to activeMainShop
+  const isShopOwner = (itemShopId) => {
+    if (!activeMainShop) return false;
+    if (itemShopId === activeMainShop.id) return true;
+    // Legacy support: if entity has no shopId, only associate with the very first shop
+    if (!itemShopId && shops.length > 0 && activeMainShop.id === shops[0].id) return true;
+    return false;
+  };
+
+  // Scoped Data for Active Main Shop (Complete Multi-Tenant Isolation)
+  const currentShopProducts = React.useMemo(() => {
+    if (!activeMainShop) return [];
+    return products.filter(p => isShopOwner(p.shopId));
+  }, [products, activeMainShop, shops]);
+
+  const currentShopReps = React.useMemo(() => {
+    if (!activeMainShop) return [];
+    return reps.filter(r => isShopOwner(r.shopId));
+  }, [reps, activeMainShop, shops]);
+
+  const currentShopCustomers = React.useMemo(() => {
+    if (!activeMainShop) return [];
+    return customers.filter(c => isShopOwner(c.shopId));
+  }, [customers, activeMainShop, shops]);
+
+  const currentShopOrders = React.useMemo(() => {
+    if (!activeMainShop) return [];
+    return orders.filter(o => isShopOwner(o.mainShopId));
+  }, [orders, activeMainShop, shops]);
+
+  // Compute Unread Notification Count (Cheques & Cash due soon + low stock items for active shop)
   const unreadNotificationsCount = React.useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const paymentsDueCount = orders.filter(o => {
+    const paymentsDueCount = currentShopOrders.filter(o => {
       if (o.isInstantPay || o.paymentMethod === 'Instant Pay') return false;
       const dueDateStr = o.paymentDueDate || (o.paymentMethod === 'Cheque' ? o.chequeDetails?.chequeDate : null);
       if (!dueDateStr) return false;
@@ -184,36 +214,37 @@ export default function App() {
       return diffDays <= 3;
     }).length;
 
-    const lowStockCount = products.filter(p => p.stock <= (p.lowStockThreshold || 10)).length;
+    const lowStockCount = currentShopProducts.filter(p => p.stock <= (p.lowStockThreshold || 10)).length;
 
     return paymentsDueCount + lowStockCount;
-  }, [orders, products]);
+  }, [currentShopOrders, currentShopProducts]);
 
   // Screen Title & Subtitle
   const getScreenDetails = () => {
+    const shopName = activeMainShop?.name || 'Inventory Catalog';
     switch (currentScreen) {
       case 'mainShops':
         return { title: 'Select Importer Shop', subtitle: 'Step 1: Choose distribution center' };
       case 'reps':
-        return { title: 'Delivery Reps', subtitle: 'Step 2: Who is out for delivery today?' };
+        return { title: 'Delivery Reps', subtitle: activeMainShop ? `${activeMainShop.name} • Step 2: Reps` : 'Step 2: Who is out for delivery today?' };
       case 'customers':
-        return { title: 'Customer Retail Outlets', subtitle: 'Step 3: Select destination shop' };
+        return { title: 'Customer Retail Outlets', subtitle: activeMainShop ? `${activeMainShop.name} • Step 3: Customers` : 'Step 3: Select destination shop' };
       case 'dashboard':
-        return { title: 'Cosmetics Inventory', subtitle: activeCustomer?.name || 'Create Orders' };
+        return { title: shopName, subtitle: activeCustomer?.name || 'Create Orders' };
       case 'checkout':
         return { title: 'Order Checkout', subtitle: 'Confirm batch & payment' };
       case 'orders':
-        return { title: 'Order History & Invoices', subtitle: 'Delivery fulfillment & bills' };
+        return { title: 'Order History & Invoices', subtitle: activeMainShop ? `${activeMainShop.name} • Orders` : 'Delivery fulfillment & bills' };
       case 'products':
-        return { title: 'Product Catalog Management', subtitle: 'SKU, pricing, excel export' };
+        return { title: 'Product Catalog Management', subtitle: activeMainShop ? `${activeMainShop.name} • SKU & Pricing` : 'SKU, pricing, excel export' };
       case 'reports':
-        return { title: 'Analytics & Reports', subtitle: 'Stock valuation & profits' };
+        return { title: 'Analytics & Reports', subtitle: activeMainShop ? `${activeMainShop.name} • Performance` : 'Stock valuation & profits' };
       case 'settings':
         return { title: 'System Settings', subtitle: 'Reps, shops, and backups' };
       case 'shopDetails':
         return { title: 'Active Session Route', subtitle: 'Current distribution path' };
       default:
-        return { title: 'LumiRep Pro', subtitle: 'Cosmetics Distribution' };
+        return { title: activeMainShop?.name || 'LumiRep Pro', subtitle: 'Distribution System' };
     }
   };
 
@@ -221,16 +252,27 @@ export default function App() {
 
   // Navigation Back Handlers
   const handleBack = () => {
-    if (currentScreen === 'reps') setCurrentScreen('mainShops');
+    if (currentScreen === 'reps') {
+      setActiveMainShop(null);
+      setCurrentScreen('mainShops');
+    }
     else if (currentScreen === 'customers') setCurrentScreen('reps');
     else if (currentScreen === 'dashboard') setCurrentScreen('customers');
     else if (currentScreen === 'checkout') setCurrentScreen('dashboard');
+    else if (['orders', 'products', 'reports', 'settings', 'shopDetails', 'refManage', 'sales'].includes(currentScreen)) {
+      if (activeCustomer) setCurrentScreen('dashboard');
+      else if (activeMainShop) setCurrentScreen('reps');
+      else setCurrentScreen('mainShops');
+    }
     else setCurrentScreen('dashboard');
   };
 
   // Step 1: Select Main Shop -> Navigate to Step 2 (Reps)
   const handleSelectMainShop = (shop) => {
     setActiveMainShop(shop);
+    setActiveRep(null);
+    setActiveCustomer(null);
+    setSelectedItems({});
     setCurrentScreen('reps');
   };
 
@@ -364,9 +406,27 @@ export default function App() {
   const handleDeleteShop = async (shopId) => {
     const updated = shops.filter(s => s.id !== shopId);
     setShops(updated);
-    saveToLocalStorage({ shops: updated });
+    const updatedProducts = products.filter(p => p.shopId !== shopId);
+    const updatedReps = reps.filter(r => r.shopId !== shopId);
+    const updatedCustomers = customers.filter(c => c.shopId !== shopId);
+    const updatedOrders = orders.filter(o => o.mainShopId !== shopId);
+    setProducts(updatedProducts);
+    setReps(updatedReps);
+    setCustomers(updatedCustomers);
+    setOrders(updatedOrders);
+    saveToLocalStorage({ 
+      shops: updated, 
+      products: updatedProducts, 
+      reps: updatedReps, 
+      customers: updatedCustomers, 
+      orders: updatedOrders 
+    });
     if (activeMainShop?.id === shopId) {
-      setActiveMainShop(updated[0] || null);
+      setActiveMainShop(null);
+      setActiveRep(null);
+      setActiveCustomer(null);
+      setSelectedItems({});
+      setCurrentScreen('mainShops');
     }
     try {
       await api.deleteShop(shopId);
@@ -376,11 +436,12 @@ export default function App() {
   };
 
   const handleAddRep = async (repData) => {
+    const shopId = repData.shopId || activeMainShop?.id || '';
     const newRep = {
       id: repData.id || 'REP-' + Date.now().toString().slice(-4),
       name: repData.name,
       phone: repData.phone || '',
-      shopId: repData.shopId || activeMainShop?.id || '',
+      shopId,
       image: repData.image || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&auto=format&fit=crop&q=60',
       createdAt: new Date().toISOString()
     };
@@ -388,7 +449,7 @@ export default function App() {
     setReps(updated);
     saveToLocalStorage({ reps: updated });
     try {
-      const saved = await api.addRep(repData);
+      const saved = await api.addRep({ ...repData, shopId });
       if (saved && saved.id) {
         const synced = updated.map((r, idx) => idx === 0 ? saved : r);
         setReps(synced);
@@ -414,12 +475,14 @@ export default function App() {
   };
 
   const handleAddCustomer = async (custData) => {
+    const shopId = custData.shopId || activeMainShop?.id || '';
     const newCust = {
       id: custData.id || 'CUST-' + Date.now().toString().slice(-4),
       name: custData.name,
       address: custData.address || '',
       ownerName: custData.ownerName || '',
       phone: custData.phone || '',
+      shopId,
       image: custData.image || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&auto=format&fit=crop&q=60',
       createdAt: new Date().toISOString()
     };
@@ -427,7 +490,7 @@ export default function App() {
     setCustomers(updated);
     saveToLocalStorage({ customers: updated });
     try {
-      const saved = await api.addCustomer(custData);
+      const saved = await api.addCustomer({ ...custData, shopId });
       if (saved && saved.id) {
         const synced = updated.map((c, idx) => idx === 0 ? saved : c);
         setCustomers(synced);
@@ -454,9 +517,11 @@ export default function App() {
 
   // Products & Categories
   const handleAddProduct = async (productData) => {
+    const shopId = productData.shopId || activeMainShop?.id || '';
     const newProduct = {
       id: 'PRD-' + Date.now().toString().slice(-5),
       ...productData,
+      shopId,
       costPrice: Number(productData.costPrice) || 0,
       salePrice: Number(productData.salePrice) || 0,
       discount: 0,
@@ -471,7 +536,7 @@ export default function App() {
     setProducts(updated);
     saveToLocalStorage({ products: updated });
     try {
-      const saved = await api.addProduct(productData);
+      const saved = await api.addProduct({ ...productData, shopId });
       if (saved && saved.id) {
         const synced = updated.map((p, idx) => idx === 0 ? saved : p);
         setProducts(synced);
@@ -516,8 +581,13 @@ export default function App() {
   };
 
   const handleBulkAddProducts = async (newProductsList) => {
+    const shopId = activeMainShop?.id || '';
+    const productsWithShop = newProductsList.map(p => ({
+      ...p,
+      shopId: p.shopId || shopId
+    }));
     try {
-      const res = await api.bulkAddProducts(newProductsList);
+      const res = await api.bulkAddProducts(productsWithShop);
       if (res && res.products) {
         setProducts(res.products);
         if (res.categories) setCategories(res.categories);
@@ -527,10 +597,11 @@ export default function App() {
       throw new Error('Server returned invalid response');
     } catch (err) {
       // Local fallback
-      const formatted = newProductsList.map((p, idx) => ({
+      const formatted = productsWithShop.map((p, idx) => ({
         id: 'PRD-' + Date.now().toString().slice(-4) + '-' + idx,
         name: p.name,
         brand: p.brand || 'General',
+        shopId: p.shopId || shopId,
         costPrice: Number(p.costPrice) || 0,
         salePrice: Number(p.salePrice) || 0,
         discount: 0,
@@ -714,7 +785,7 @@ export default function App() {
           {/* Page 2: Delivery Reps Selection ("Ada delivery awe kawda?") */}
           {currentScreen === 'reps' && (
             <RepSelectionPage
-              reps={reps}
+              reps={currentShopReps}
               onSelectRep={handleSelectRep}
               onAddRep={handleAddRep}
               onDeleteRep={handleDeleteRep}
@@ -725,7 +796,7 @@ export default function App() {
           {/* Page 3: Customer Shop Selection ("Badu dana shop thoranna") */}
           {currentScreen === 'customers' && (
             <CustomerShopPage
-              customers={customers}
+              customers={currentShopCustomers}
               onSelectCustomer={handleSelectCustomer}
               onAddCustomer={handleAddCustomer}
               onDeleteCustomer={handleDeleteCustomer}
@@ -737,7 +808,7 @@ export default function App() {
           {/* Page 4 & 6: Dashboard & Inventory & Ordering */}
           {currentScreen === 'dashboard' && (
             <DashboardPage
-              products={products}
+              products={currentShopProducts}
               categories={categories}
               selectedItems={selectedItems}
               onToggleSelectItem={handleToggleSelectItem}
@@ -756,8 +827,8 @@ export default function App() {
           {currentScreen === 'checkout' && (
             <CheckoutPage
               selectedItems={selectedItems}
-              products={products}
-              orders={orders}
+              products={currentShopProducts}
+              orders={currentShopOrders}
               activeCustomer={activeCustomer}
               activeRep={activeRep}
               activeMainShop={activeMainShop}
@@ -771,7 +842,7 @@ export default function App() {
           {/* Page 8: Orders History, Cheque Alerts, PDF & WhatsApp */}
           {currentScreen === 'orders' && (
             <OrdersPage
-              orders={orders}
+              orders={currentShopOrders}
               onUpdateStatus={handleUpdateOrderStatus}
               searchTerm={searchTerm}
             />
@@ -780,7 +851,7 @@ export default function App() {
           {/* Page 9: Product Manage, Categories, Excel Export */}
           {currentScreen === 'products' && (
             <ProductManagePage
-              products={products}
+              products={currentShopProducts}
               categories={categories}
               onAddProduct={handleAddProduct}
               onUpdateProduct={handleUpdateProduct}
@@ -795,9 +866,9 @@ export default function App() {
           {/* Page 10: Reports & Visual Charts */}
           {currentScreen === 'reports' && (
             <ReportsPage
-              products={products}
-              orders={orders}
-              customers={customers}
+              products={currentShopProducts}
+              orders={currentShopOrders}
+              customers={currentShopCustomers}
             />
           )}
 
@@ -818,7 +889,7 @@ export default function App() {
           {/* Direct view for Ref Manage */}
           {currentScreen === 'refManage' && (
             <RepSelectionPage
-              reps={reps}
+              reps={currentShopReps}
               onSelectRep={handleSelectRep}
               onAddRep={handleAddRep}
               onDeleteRep={handleDeleteRep}
@@ -829,9 +900,9 @@ export default function App() {
           {/* Direct view for Sales Overview */}
           {currentScreen === 'sales' && (
             <ReportsPage
-              products={products}
-              orders={orders}
-              customers={customers}
+              products={currentShopProducts}
+              orders={currentShopOrders}
+              customers={currentShopCustomers}
             />
           )}
 
@@ -855,8 +926,8 @@ export default function App() {
           </div>
         )}
 
-        {/* Modern Frosted Glass 5-Icon Bottom Tab Bar (hidden during Checkout or when items are selected on Dashboard) */}
-        {currentScreen !== 'checkout' && !(currentScreen === 'dashboard' && Object.keys(selectedItems).length > 0) && (
+        {/* Modern Frosted Glass 5-Icon Bottom Tab Bar (hidden on mainShops, during Checkout, or when items are selected on Dashboard) */}
+        {currentScreen !== 'mainShops' && currentScreen !== 'checkout' && !(currentScreen === 'dashboard' && Object.keys(selectedItems).length > 0) && (
           <BottomNav
             currentScreen={currentScreen}
             onNavigate={(screenId) => {
@@ -870,32 +941,34 @@ export default function App() {
           />
         )}
 
-        {/* Side Navigation Drawer (the 3 lines hamburger menu) */}
-        <Sidebar
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-          currentScreen={currentScreen}
-          onNavigate={(screenId) => {
-            if (screenId === 'notifications') {
-              setIsNotificationsOpen(true);
-            } else {
-              setCurrentScreen(screenId);
-              setSearchTerm('');
-            }
-          }}
-          activeMainShop={activeMainShop}
-          activeRep={activeRep}
-          activeCustomer={activeCustomer}
-          onLogout={handleLogout}
-          unreadCount={unreadNotificationsCount}
-        />
+        {/* Side Navigation Drawer (the 3 lines hamburger menu - hidden on initial mainShops screen) */}
+        {currentScreen !== 'mainShops' && (
+          <Sidebar
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+            currentScreen={currentScreen}
+            onNavigate={(screenId) => {
+              if (screenId === 'notifications') {
+                setIsNotificationsOpen(true);
+              } else {
+                setCurrentScreen(screenId);
+                setSearchTerm('');
+              }
+            }}
+            activeMainShop={activeMainShop}
+            activeRep={activeRep}
+            activeCustomer={activeCustomer}
+            onLogout={handleLogout}
+            unreadCount={unreadNotificationsCount}
+          />
+        )}
 
         {/* Notifications Modal */}
         <NotificationsModal
           isOpen={isNotificationsOpen}
           onClose={() => setIsNotificationsOpen(false)}
-          orders={orders}
-          products={products}
+          orders={currentShopOrders}
+          products={currentShopProducts}
           onSelectOrder={handleSelectOrderFromNotifications}
         />
 

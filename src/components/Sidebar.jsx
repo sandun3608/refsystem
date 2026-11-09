@@ -37,7 +37,7 @@ export default function Sidebar({
     { id: 'shopDetails', label: 'Shop Details', icon: Store, badge: null }
   ];
 
-  if (!isOpen) return null;
+  if (!isOpen || currentScreen === 'mainShops') return null;
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -56,9 +56,9 @@ export default function Sidebar({
             <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-xs">
               <span className="text-xl">✨</span>
             </div>
-            <div>
-              <h2 className="text-base font-extrabold tracking-tight">Distribution Hub</h2>
-              <p className="text-[11px] text-blue-100/90 font-medium">Cosmetics Rep System</p>
+            <div className="min-w-0 max-w-[190px]">
+              <h2 className="text-base font-extrabold tracking-tight truncate">{activeMainShop?.name || 'Distribution Hub'}</h2>
+              <p className="text-[11px] text-blue-100/90 font-medium truncate">{activeMainShop ? 'Active Importer Shop' : 'Multi-Shop Distribution'}</p>
             </div>
           </div>
           <button 
@@ -119,64 +119,68 @@ export default function Sidebar({
           })}
         </div>
 
-        {/* Bottom Profile / Identity Section (Visible ONLY when on Dashboard / Home Page during an active session) */}
-        {['dashboard', 'checkout', 'shopDetails'].includes(currentScreen) && activeMainShop && activeRep && activeCustomer && (
+        {/* Bottom Profile / Identity Section & Switch Shop */}
+        {activeMainShop && (
           <div className="p-2.5 border-t border-slate-100 bg-slate-50/70">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 px-0.5">
-              Active Session
-            </p>
-            
-            <div className="grid grid-cols-3 gap-1.5">
-              {/* 1. Main Shop Small Circle */}
-              <div className="flex flex-col items-center bg-white p-1.5 rounded-xl border border-slate-200/70 shadow-2xs text-center min-w-0">
-                <img
-                  src={activeMainShop?.image}
-                  alt={activeMainShop?.name}
-                  className="w-6 h-6 rounded-full object-cover border border-blue-500 mb-1 shadow-2xs"
-                />
-                <span className="text-[8px] font-bold text-blue-600 uppercase block leading-none">Shop</span>
-                <span className="text-[9px] font-bold text-slate-800 truncate w-full block mt-0.5">{activeMainShop?.name?.split(' ')[0]}</span>
-              </div>
-
-              {/* 2. Rep Small Circle */}
-              <div className="flex flex-col items-center bg-white p-1.5 rounded-xl border border-slate-200/70 shadow-2xs text-center min-w-0">
-                <img
-                  src={activeRep?.image}
-                  alt={activeRep?.name}
-                  className="w-6 h-6 rounded-full object-cover border border-emerald-500 mb-1 shadow-2xs"
-                />
-                <span className="text-[8px] font-bold text-emerald-600 uppercase block leading-none">Rep</span>
-                <span className="text-[9px] font-bold text-slate-800 truncate w-full block mt-0.5">{activeRep?.name?.split(' ')[0]}</span>
-              </div>
-
-              {/* 3. Customer Small Circle */}
-              <div className="flex flex-col items-center bg-white p-1.5 rounded-xl border border-slate-200/70 shadow-2xs text-center min-w-0">
-                {activeCustomer?.image ? (
-                  <img
-                    src={activeCustomer?.image}
-                    alt={activeCustomer?.name}
-                    className="w-6 h-6 rounded-full object-cover border border-purple-500 mb-1 shadow-2xs"
-                  />
-                ) : (
-                  <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-[8px] mb-1">
-                    {activeCustomer?.name?.substring(0, 2).toUpperCase()}
+            {activeRep && activeCustomer && (
+              <>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 px-0.5">
+                  Active Session
+                </p>
+                
+                <div className="grid grid-cols-3 gap-1.5 mb-2">
+                  {/* 1. Main Shop Small Circle */}
+                  <div className="flex flex-col items-center bg-white p-1.5 rounded-xl border border-slate-200/70 shadow-2xs text-center min-w-0">
+                    <img
+                      src={activeMainShop?.image}
+                      alt={activeMainShop?.name}
+                      className="w-6 h-6 rounded-full object-cover border border-blue-500 mb-1 shadow-2xs"
+                    />
+                    <span className="text-[8px] font-bold text-blue-600 uppercase block leading-none">Shop</span>
+                    <span className="text-[9px] font-bold text-slate-800 truncate w-full block mt-0.5">{activeMainShop?.name?.split(' ')[0]}</span>
                   </div>
-                )}
-                <span className="text-[8px] font-bold text-purple-600 uppercase block leading-none">Client</span>
-                <span className="text-[9px] font-bold text-slate-800 truncate w-full block mt-0.5">{activeCustomer?.name?.split(' ')[0]}</span>
-              </div>
-            </div>
 
-            {/* Compact Log out button */}
+                  {/* 2. Rep Small Circle */}
+                  <div className="flex flex-col items-center bg-white p-1.5 rounded-xl border border-slate-200/70 shadow-2xs text-center min-w-0">
+                    <img
+                      src={activeRep?.image}
+                      alt={activeRep?.name}
+                      className="w-6 h-6 rounded-full object-cover border border-emerald-500 mb-1 shadow-2xs"
+                    />
+                    <span className="text-[8px] font-bold text-emerald-600 uppercase block leading-none">Rep</span>
+                    <span className="text-[9px] font-bold text-slate-800 truncate w-full block mt-0.5">{activeRep?.name?.split(' ')[0]}</span>
+                  </div>
+
+                  {/* 3. Customer Small Circle */}
+                  <div className="flex flex-col items-center bg-white p-1.5 rounded-xl border border-slate-200/70 shadow-2xs text-center min-w-0">
+                    {activeCustomer?.image ? (
+                      <img
+                        src={activeCustomer?.image}
+                        alt={activeCustomer?.name}
+                        className="w-6 h-6 rounded-full object-cover border border-purple-500 mb-1 shadow-2xs"
+                      />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-[8px] mb-1">
+                        {activeCustomer?.name?.substring(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="text-[8px] font-bold text-purple-600 uppercase block leading-none">Client</span>
+                    <span className="text-[9px] font-bold text-slate-800 truncate w-full block mt-0.5">{activeCustomer?.name?.split(' ')[0]}</span>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Switch Importer Shop button */}
             <button
               onClick={() => {
                 onLogout();
                 onClose();
               }}
-              className="mt-2 w-full flex items-center justify-center space-x-1.5 py-1.5 px-2 text-[10px] font-bold text-red-600 bg-red-50 hover:bg-red-100/80 rounded-xl transition-all border border-red-200/60 active:scale-98"
+              className="w-full flex items-center justify-center space-x-1.5 py-2 px-2 text-[11px] font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all border border-red-200/70 active:scale-98 shadow-2xs"
             >
-              <LogOut className="w-3 h-3" />
-              <span>Log Out to First Page</span>
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Switch Importer Shop</span>
             </button>
           </div>
         )}

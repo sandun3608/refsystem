@@ -40,7 +40,7 @@ export default function CustomerShopPage({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
-    onAddCustomer(formData);
+    onAddCustomer({ ...formData, shopId: mainShop?.id });
     setFormData({
       name: '',
       address: '',

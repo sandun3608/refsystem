@@ -31,18 +31,20 @@ export default function Header({
           {/* LEFT: Nav bar icon (3-lines menu) + Back button + Title + Small Avatar Circles on Home */}
           <div className="flex items-center space-x-2 min-w-0">
             
-            {/* Modern 3-Lines Navigation Bar Menu Button on the LEFT */}
-            <button
-              onClick={onToggleSidebar}
-              className="w-8 h-8 flex items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white shadow-sm shadow-blue-500/25 transition-all duration-200 active:scale-95 group focus:outline-none flex-shrink-0"
-              title="Open Navigation Menu"
-            >
-              <div className="flex flex-col justify-center items-center gap-1 w-3.5">
-                <span className="w-3.5 h-[2px] bg-white rounded-full transition-transform"></span>
-                <span className="w-2.5 h-[2px] bg-white/90 rounded-full transition-all group-hover:w-3.5"></span>
-                <span className="w-3 h-[2px] bg-white/90 rounded-full transition-all group-hover:w-3.5"></span>
-              </div>
-            </button>
+            {/* Modern 3-Lines Navigation Bar Menu Button on the LEFT (hidden on initial Main Shops selection) */}
+            {currentScreen !== 'mainShops' && (
+              <button
+                onClick={onToggleSidebar}
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white shadow-sm shadow-blue-500/25 transition-all duration-200 active:scale-95 group focus:outline-none flex-shrink-0"
+                title="Open Navigation Menu"
+              >
+                <div className="flex flex-col justify-center items-center gap-1 w-3.5">
+                  <span className="w-3.5 h-[2px] bg-white rounded-full transition-transform"></span>
+                  <span className="w-2.5 h-[2px] bg-white/90 rounded-full transition-all group-hover:w-3.5"></span>
+                  <span className="w-3 h-[2px] bg-white/90 rounded-full transition-all group-hover:w-3.5"></span>
+                </div>
+              </button>
+            )}
 
             {/* Back button if in subpage */}
             {showBack && (

@@ -95,7 +95,12 @@ app.post('/api/shops', async (req, res) => {
 app.delete('/api/shops/:id', async (req, res) => {
   try {
     const db = await readDb();
-    db.shops = db.shops.filter(s => s.id !== req.params.id);
+    const shopId = req.params.id;
+    db.shops = db.shops.filter(s => s.id !== shopId);
+    if (Array.isArray(db.products)) db.products = db.products.filter(p => p.shopId !== shopId);
+    if (Array.isArray(db.reps)) db.reps = db.reps.filter(r => r.shopId !== shopId);
+    if (Array.isArray(db.customers)) db.customers = db.customers.filter(c => c.shopId !== shopId);
+    if (Array.isArray(db.orders)) db.orders = db.orders.filter(o => o.mainShopId !== shopId);
     await writeDb(db);
     res.json({ success: true });
   } catch (err) {
@@ -140,7 +145,7 @@ app.delete('/api/reps/:id', async (req, res) => {
 // Add Customer Shop
 app.post('/api/customers', async (req, res) => {
   try {
-    const { name, address, id, image, ownerName, phone } = req.body;
+    const { name, address, id, image, ownerName, phone, shopId } = req.body;
     if (!name) return res.status(400).json({ error: 'Customer shop name is required' });
     const db = await readDb();
     const newCust = {
@@ -150,6 +155,7 @@ app.post('/api/customers', async (req, res) => {
       ownerName: ownerName || '',
       image: image || '',
       phone: phone || '',
+      shopId: shopId || '',
       createdAt: new Date().toISOString()
     };
     db.customers.unshift(newCust);
@@ -203,13 +209,14 @@ app.delete('/api/categories/:name', async (req, res) => {
 // Add Product
 app.post('/api/products', async (req, res) => {
   try {
-    const { name, brand, costPrice, salePrice, stock, lowStockThreshold, batchId, image, expiryDate } = req.body;
+    const { name, brand, costPrice, salePrice, stock, lowStockThreshold, batchId, image, expiryDate, shopId } = req.body;
     if (!name) return res.status(400).json({ error: 'Product name is required' });
     const db = await readDb();
     const newProduct = {
       id: 'PRD-' + Date.now().toString().slice(-5),
       name,
       brand: brand || 'General',
+      shopId: shopId || '',
       costPrice: Number(costPrice) || 0,
       salePrice: Number(salePrice) || 0,
       discount: 0,
@@ -292,6 +299,7 @@ app.post('/api/products/bulk-add', async (req, res) => {
         id: p.id || `PRD-${timestamp.toString().slice(-4)}-${idx + 1}`,
         name,
         brand,
+        shopId: p.shopId || '',
         costPrice: Number(p.costPrice) || 0,
         salePrice: Number(p.salePrice) || 0,
         discount: Number(p.discount) || 0,
