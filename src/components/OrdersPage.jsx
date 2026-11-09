@@ -21,7 +21,7 @@ import {
   Truck,
   Sparkles
 } from 'lucide-react';
-import { generateOrderPDF } from '../utils/pdfGenerator';
+import { generateOrderPDF, openPrintableInvoice } from '../utils/pdfGenerator';
 
 export default function OrdersPage({ 
   orders, 
@@ -31,6 +31,7 @@ export default function OrdersPage({
   const [expandedOrderId, setExpandedOrderId] = useState(orders[0]?.id || null);
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
   const [filterStatus, setFilterStatus] = useState('All'); // All, Processing, Delivered
+  const [downloadFeedback, setDownloadFeedback] = useState('');
 
   // Check if a payment due date is approaching (within 3 days or today or overdue)
   const isPaymentDueSoon = (order) => {
@@ -95,14 +96,30 @@ export default function OrdersPage({
     return matchesFilter && matchesSearch;
   });
 
+  // Single order PDF download with visual feedback
+  const handleSingleDownload = (order) => {
+    setDownloadFeedback(`Generating PDF invoice for ${order.id}...`);
+    setTimeout(() => {
+      generateOrderPDF(order);
+      setDownloadFeedback(`✅ PDF Invoice for ${order.id} downloaded!`);
+      setTimeout(() => setDownloadFeedback(''), 4000);
+    }, 150);
+  };
+
   // Bulk actions
   const handleBulkDownload = () => {
     const ordersToDownload = orders.filter(o => selectedOrderIds.includes(o.id));
+    if (ordersToDownload.length === 0) return;
+    setDownloadFeedback(`Downloading ${ordersToDownload.length} Invoice PDFs...`);
     ordersToDownload.forEach((ord, index) => {
       setTimeout(() => {
         generateOrderPDF(ord);
-      }, index * 300);
+      }, index * 400);
     });
+    setTimeout(() => {
+      setDownloadFeedback(`✅ ${ordersToDownload.length} Invoice PDFs downloaded!`);
+      setTimeout(() => setDownloadFeedback(''), 4000);
+    }, ordersToDownload.length * 400 + 400);
   };
 
   // Format WhatsApp Message
@@ -160,6 +177,22 @@ export default function OrdersPage({
             : 'Select All'}
         </button>
       </div>
+
+      {/* Download Status Toast / Alert */}
+      {downloadFeedback && (
+        <div className="p-3 bg-emerald-600 text-white text-xs font-bold rounded-2xl shadow-lg flex items-center justify-between animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping" />
+            <span>{downloadFeedback}</span>
+          </div>
+          <button 
+            onClick={() => setDownloadFeedback('')}
+            className="text-white/80 hover:text-white text-xs font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Floating Action Bar when orders are ticked/selected ("tick mark eka damma share and down load button enna ona") */}
       {selectedOrderIds.length > 0 && (
@@ -429,7 +462,7 @@ export default function OrdersPage({
                       {/* Download PDF ("download dunama pdf ekk hadila 4n ekata download wenna ona") */}
                       <button
                         type="button"
-                        onClick={() => generateOrderPDF(order)}
+                        onClick={() => handleSingleDownload(order)}
                         className="py-2.5 px-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-xs transition-all active:scale-95"
                         title="Download Invoice PDF"
                       >
@@ -437,12 +470,12 @@ export default function OrdersPage({
                         <span>PDF Invoice</span>
                       </button>
 
-                      {/* Print */}
+                      {/* Print / Save PDF View */}
                       <button
                         type="button"
-                        onClick={() => window.print()}
+                        onClick={() => openPrintableInvoice(order)}
                         className="py-2.5 px-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-xs transition-all active:scale-95"
-                        title="Print Order"
+                        title="Print Order / Clean PDF View"
                       >
                         <Printer className="w-3.5 h-3.5" />
                         <span>Print Bill</span>
