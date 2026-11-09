@@ -266,7 +266,7 @@ export default function CheckoutPage({
           <span className="text-[10px] text-slate-400 font-medium">Select terms</span>
         </label>
         
-        {/* Instant Pay Tick Mark Option ("eke uda tick mark danna instant pay kiyala. eken kiyawanne adama geuwa kiyala") */}
+        {/* Instant Pay Tick Mark Option */}
         <div 
           onClick={() => setIsInstantPay(!isInstantPay)}
           className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between select-none active:scale-[0.99] ${
@@ -288,7 +288,7 @@ export default function CheckoutPage({
             </button>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-black text-slate-900">Instant Pay (අදම ගෙවීම් කළා)</span>
+                <span className="text-xs font-black text-slate-900">Instant Pay (Paid Today)</span>
                 {isInstantPay && <Sparkles className="w-3.5 h-3.5 text-emerald-600 fill-emerald-500" />}
               </div>
               <p className="text-[10px] text-slate-500 font-medium mt-0.5">
@@ -354,35 +354,26 @@ export default function CheckoutPage({
               </button>
             </div>
 
-            {/* If Cash selected: Select Cash Payment Due Date ("ehema natnm cash daddith kawadda eya gewanne kiyala dinayak select karanna ona") */}
+            {/* If Cash selected: Compact Centered Cash Due Date */}
             {paymentMethod === 'Cash' && (
-              <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200 space-y-2 animate-in fade-in duration-200 overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-emerald-600" />
-                    <span>Cash Payment Due Date (කවද්ද සල්ලි දෙන්නේ)</span>
-                  </span>
-                  <span className="text-[9px] bg-emerald-600 text-white font-extrabold px-1.5 py-0.2 rounded-md">
-                    Triggers Alert
-                  </span>
-                </div>
-
-                <div className="w-full min-w-0">
+              <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200 flex flex-col items-center justify-center text-center space-y-1.5 animate-in fade-in duration-200 overflow-hidden">
+                <label className="text-xs font-bold text-emerald-900 flex items-center justify-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Cash Payment Due Date</span>
+                </label>
+                <div className="w-full max-w-[220px]">
                   <input
                     type="date"
                     required
                     value={cashDueDate}
                     onChange={(e) => setCashDueDate(e.target.value)}
-                    className="w-full max-w-full box-border min-w-0 text-[16px] sm:text-xs bg-white border border-emerald-200 rounded-xl px-3 py-2 outline-none font-bold text-slate-800 shadow-2xs"
+                    className="w-full text-center px-3 py-1.5 text-xs bg-white border border-emerald-300 rounded-xl outline-none font-bold text-slate-800 shadow-2xs focus:border-emerald-500"
                   />
                 </div>
-                <p className="text-[10px] text-emerald-700 font-medium">
-                  🔔 Notifications will trigger in the app when this payment collection date arrives.
-                </p>
               </div>
             )}
 
-            {/* If Cheque selected: Cheque input details with date notification trigger (Fixed date row overflow!) */}
+            {/* If Cheque selected: Cheque input details with Compact Centered Due Date */}
             {paymentMethod === 'Cheque' && (
               <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-200 space-y-2.5 animate-in fade-in duration-200 overflow-hidden">
                 <span className="text-[10px] font-bold text-blue-800 uppercase tracking-wider block">
@@ -397,7 +388,7 @@ export default function CheckoutPage({
                       placeholder="e.g. CHQ-78601"
                       value={chequeDetails.chequeNumber}
                       onChange={(e) => setChequeDetails({ ...chequeDetails, chequeNumber: e.target.value })}
-                      className="w-full max-w-full box-border min-w-0 px-3 py-2 text-[16px] sm:text-xs bg-white border border-slate-200 rounded-xl outline-none font-medium"
+                      className="w-full box-border px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl outline-none font-medium"
                     />
                   </div>
 
@@ -408,27 +399,27 @@ export default function CheckoutPage({
                       placeholder="e.g. Commercial Bank"
                       value={chequeDetails.bankName}
                       onChange={(e) => setChequeDetails({ ...chequeDetails, bankName: e.target.value })}
-                      className="w-full max-w-full box-border min-w-0 px-3 py-2 text-[16px] sm:text-xs bg-white border border-slate-200 rounded-xl outline-none font-medium"
+                      className="w-full box-border px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl outline-none font-medium"
                     />
                   </div>
                 </div>
 
-                {/* Date Row - Fixed: box-border min-w-0 max-w-full ensures it never overflows container! */}
-                <div className="w-full min-w-0">
-                  <label className="text-[10px] font-bold text-slate-600 block mb-1">
-                    Cheque Clearance / Due Date (Triggers Notifications)
+                {/* Compact Centered Cheque Due Date */}
+                <div className="pt-1 border-t border-blue-100 flex flex-col items-center justify-center text-center space-y-1.5">
+                  <label className="text-xs font-bold text-blue-900 flex items-center justify-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Cheque Clearance Due Date</span>
                   </label>
-                  <input
-                    type="date"
-                    required
-                    value={chequeDetails.chequeDate}
-                    onChange={(e) => setChequeDetails({ ...chequeDetails, chequeDate: e.target.value })}
-                    className="w-full max-w-full box-border min-w-0 px-3 py-2 text-[16px] sm:text-xs bg-white border border-blue-200 rounded-xl outline-none font-bold text-slate-800 shadow-2xs"
-                  />
+                  <div className="w-full max-w-[220px]">
+                    <input
+                      type="date"
+                      required
+                      value={chequeDetails.chequeDate}
+                      onChange={(e) => setChequeDetails({ ...chequeDetails, chequeDate: e.target.value })}
+                      className="w-full text-center px-3 py-1.5 text-xs bg-white border border-blue-300 rounded-xl outline-none font-bold text-slate-800 shadow-2xs focus:border-blue-500"
+                    />
+                  </div>
                 </div>
-                <p className="text-[10px] text-blue-600 font-medium">
-                  🔔 Notifications will trigger 3 days prior to cheque deposit date.
-                </p>
               </div>
             )}
           </div>
