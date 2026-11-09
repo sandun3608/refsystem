@@ -9,11 +9,10 @@ export const api = {
       const res = await fetch(`${API_BASE}/data`);
       if (!res.ok) throw new Error('Network error');
       const data = await res.json();
-      localStorage.setItem('lumirep_cache', JSON.stringify(data));
       return data;
     } catch (err) {
-      console.warn('API error, falling back to local cache/storage', err);
-      const cached = localStorage.getItem('lumirep_cache');
+      console.warn('API error, falling back to local storage', err);
+      const cached = localStorage.getItem('lumicosmetics_client_store_v1');
       if (cached) return JSON.parse(cached);
       return null;
     }

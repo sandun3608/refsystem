@@ -45,21 +45,121 @@ export default function App() {
   // iPhone 17 Pro Preview Frame Toggle (desktop feature)
   const [isPhoneFrame, setIsPhoneFrame] = useState(true);
 
-  // Load Initial Data from Backend
+  const STORAGE_KEY = 'lumicosmetics_client_store_v1';
+
+  // Sanitize helper to purge any stale test entities ("Haj", "Bb", "Ahha")
+  const sanitizeData = (data) => {
+    if (!data) return data;
+    if (Array.isArray(data.shops)) {
+      data.shops = data.shops.filter(s => s.id !== 'MS001jaja' && s.name !== 'Haj');
+    }
+    if (Array.isArray(data.reps)) {
+      data.reps = data.reps.filter(r => r.id !== 'REP-821' && r.name !== 'Bb');
+    }
+    if (Array.isArray(data.customers)) {
+      data.customers = data.customers.filter(c => c.id !== 'CUST-01' && c.name !== 'Ahha');
+    }
+    return data;
+  };
+
+  // Synchronously commit database to browser persistent storage
+  const saveToLocalStorage = (customState = {}) => {
+    try {
+      const dataToSave = {
+        shops,
+        reps,
+        customers,
+        categories,
+        products,
+        orders,
+        updatedAt: Date.now(),
+        ...customState
+      };
+      sanitizeData(dataToSave);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+    } catch (e) {
+      console.warn('LocalStorage save error:', e);
+    }
+  };
+
+  // Load Initial Data: Prioritize persistent device storage, then sync with server
   const loadData = async () => {
     setIsLoading(true);
+
+    // Clean out legacy cache keys
     try {
-      const data = await api.getAllData();
-      if (data) {
-        setShops(data.shops || []);
-        setReps(data.reps || []);
-        setCustomers(data.customers || []);
-        setCategories(data.categories || []);
-        setProducts(data.products || []);
-        setOrders(data.orders || []);
+      localStorage.removeItem('lumirep_cache');
+    } catch (e) {}
+
+    // 1. Read from persistent local storage first (instant 0ms response, immune to server restart)
+    let localStore = null;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        localStore = sanitizeData(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.warn('LocalStorage read error', e);
+    }
+
+    if (localStore) {
+      setShops(localStore.shops || []);
+      setReps(localStore.reps || []);
+      setCustomers(localStore.customers || []);
+      setCategories(localStore.categories || []);
+      setProducts(localStore.products || []);
+      setOrders(localStore.orders || []);
+      setIsLoading(false);
+    }
+
+    // 2. Fetch from backend and sync
+    try {
+      let serverData = await api.getAllData();
+      if (serverData) {
+        serverData = sanitizeData(serverData);
+
+        const localHasData = localStore && (
+          (localStore.shops && localStore.shops.length > 0) ||
+          (localStore.products && localStore.products.length > 0) ||
+          (localStore.customers && localStore.customers.length > 0) ||
+          (localStore.reps && localStore.reps.length > 0) ||
+          (localStore.orders && localStore.orders.length > 0)
+        );
+
+        const serverIsEmpty = (!serverData.shops || serverData.shops.length === 0) &&
+                              (!serverData.products || serverData.products.length === 0) &&
+                              (!serverData.customers || serverData.customers.length === 0);
+
+        if (localHasData && serverIsEmpty) {
+          // Render free instance rebooted and lost disk data! Push local state to server:
+          await api.restoreBackup({
+            shops: localStore.shops || [],
+            reps: localStore.reps || [],
+            customers: localStore.customers || [],
+            categories: localStore.categories || [],
+            products: localStore.products || [],
+            orders: localStore.orders || []
+          });
+        } else if (!localStore) {
+          // New device: initialize state and local storage with server data
+          setShops(serverData.shops || []);
+          setReps(serverData.reps || []);
+          setCustomers(serverData.customers || []);
+          setCategories(serverData.categories || []);
+          setProducts(serverData.products || []);
+          setOrders(serverData.orders || []);
+          saveToLocalStorage({
+            shops: serverData.shops || [],
+            reps: serverData.reps || [],
+            customers: serverData.customers || [],
+            categories: serverData.categories || [],
+            products: serverData.products || [],
+            orders: serverData.orders || []
+          });
+        }
       }
     } catch (err) {
-      console.error('Error fetching data:', err);
+      console.warn('Backend fetch failed, using local persistent data', err);
     } finally {
       setIsLoading(false);
     }
@@ -203,18 +303,19 @@ export default function App() {
   const handleSubmitOrder = async (orderPayload) => {
     try {
       const savedOrder = await api.createOrder(orderPayload);
-      setOrders(prev => [savedOrder, ...prev]);
+      const newOrders = [savedOrder, ...orders];
+      setOrders(newOrders);
 
       // Deduct stock locally
-      setProducts(prevProducts => {
-        return prevProducts.map(p => {
-          const item = orderPayload.items.find(i => i.productId === p.id);
-          if (item) {
-            return { ...p, stock: Math.max(0, p.stock - item.quantity) };
-          }
-          return p;
-        });
+      const updatedProducts = products.map(p => {
+        const item = orderPayload.items?.find(i => i.productId === p.id);
+        if (item) {
+          return { ...p, stock: Math.max(0, p.stock - (Number(item.quantity) || 0)) };
+        }
+        return p;
       });
+      setProducts(updatedProducts);
+      saveToLocalStorage({ orders: newOrders, products: updatedProducts });
 
       setSelectedItems({});
       setCurrentScreen('orders');
@@ -225,73 +326,191 @@ export default function App() {
 
   // Update order status (Processing / Delivered)
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
+    const updated = orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
+    setOrders(updated);
+    saveToLocalStorage({ orders: updated });
     try {
       await api.updateOrderStatus(orderId, newStatus);
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
     } catch (err) {
       console.error('Failed to update order status:', err);
     }
   };
 
-  // Add / Delete Entities
+  // Add / Delete Entities (Synced with localStorage and backend)
   const handleAddShop = async (shopData) => {
-    const saved = await api.addShop(shopData);
-    setShops(prev => [saved, ...prev]);
+    const newShop = {
+      id: shopData.id || 'SHOP-' + Date.now().toString().slice(-4),
+      name: shopData.name,
+      image: shopData.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60',
+      createdAt: new Date().toISOString()
+    };
+    const updated = [newShop, ...shops];
+    setShops(updated);
+    saveToLocalStorage({ shops: updated });
+    try {
+      const saved = await api.addShop(shopData);
+      if (saved && saved.id) {
+        const synced = updated.map((s, idx) => idx === 0 ? saved : s);
+        setShops(synced);
+        saveToLocalStorage({ shops: synced });
+      }
+    } catch (err) {
+      console.warn('Backend sync failed, saved locally', err);
+    }
   };
 
   const handleDeleteShop = async (shopId) => {
-    await api.deleteShop(shopId);
-    setShops(prev => prev.filter(s => s.id !== shopId));
+    const updated = shops.filter(s => s.id !== shopId);
+    setShops(updated);
+    saveToLocalStorage({ shops: updated });
     if (activeMainShop?.id === shopId) {
-      setActiveMainShop(shops[1] || null);
+      setActiveMainShop(updated[0] || null);
+    }
+    try {
+      await api.deleteShop(shopId);
+    } catch (err) {
+      console.warn('Backend sync error on delete shop', err);
     }
   };
 
   const handleAddRep = async (repData) => {
-    const saved = await api.addRep(repData);
-    setReps(prev => [saved, ...prev]);
+    const newRep = {
+      id: repData.id || 'REP-' + Date.now().toString().slice(-4),
+      name: repData.name,
+      phone: repData.phone || '',
+      shopId: repData.shopId || activeMainShop?.id || '',
+      image: repData.image || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&auto=format&fit=crop&q=60',
+      createdAt: new Date().toISOString()
+    };
+    const updated = [newRep, ...reps];
+    setReps(updated);
+    saveToLocalStorage({ reps: updated });
+    try {
+      const saved = await api.addRep(repData);
+      if (saved && saved.id) {
+        const synced = updated.map((r, idx) => idx === 0 ? saved : r);
+        setReps(synced);
+        saveToLocalStorage({ reps: synced });
+      }
+    } catch (err) {
+      console.warn('Backend sync error on add rep', err);
+    }
   };
 
   const handleDeleteRep = async (repId) => {
-    await api.deleteRep(repId);
-    setReps(prev => prev.filter(r => r.id !== repId));
+    const updated = reps.filter(r => r.id !== repId);
+    setReps(updated);
+    saveToLocalStorage({ reps: updated });
     if (activeRep?.id === repId) {
-      setActiveRep(reps[1] || null);
+      setActiveRep(updated[0] || null);
+    }
+    try {
+      await api.deleteRep(repId);
+    } catch (err) {
+      console.warn('Backend sync error on delete rep', err);
     }
   };
 
   const handleAddCustomer = async (custData) => {
-    const saved = await api.addCustomer(custData);
-    setCustomers(prev => [saved, ...prev]);
+    const newCust = {
+      id: custData.id || 'CUST-' + Date.now().toString().slice(-4),
+      name: custData.name,
+      address: custData.address || '',
+      ownerName: custData.ownerName || '',
+      phone: custData.phone || '',
+      image: custData.image || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&auto=format&fit=crop&q=60',
+      createdAt: new Date().toISOString()
+    };
+    const updated = [newCust, ...customers];
+    setCustomers(updated);
+    saveToLocalStorage({ customers: updated });
+    try {
+      const saved = await api.addCustomer(custData);
+      if (saved && saved.id) {
+        const synced = updated.map((c, idx) => idx === 0 ? saved : c);
+        setCustomers(synced);
+        saveToLocalStorage({ customers: synced });
+      }
+    } catch (err) {
+      console.warn('Backend sync error on add customer', err);
+    }
   };
 
   const handleDeleteCustomer = async (custId) => {
-    await api.deleteCustomer(custId);
-    setCustomers(prev => prev.filter(c => c.id !== custId));
+    const updated = customers.filter(c => c.id !== custId);
+    setCustomers(updated);
+    saveToLocalStorage({ customers: updated });
     if (activeCustomer?.id === custId) {
-      setActiveCustomer(customers[1] || null);
+      setActiveCustomer(updated[0] || null);
+    }
+    try {
+      await api.deleteCustomer(custId);
+    } catch (err) {
+      console.warn('Backend sync error on delete customer', err);
     }
   };
 
   // Products & Categories
   const handleAddProduct = async (productData) => {
-    const saved = await api.addProduct(productData);
-    setProducts(prev => [saved, ...prev]);
+    const newProduct = {
+      id: 'PRD-' + Date.now().toString().slice(-5),
+      ...productData,
+      costPrice: Number(productData.costPrice) || 0,
+      salePrice: Number(productData.salePrice) || 0,
+      discount: 0,
+      stock: Number(productData.stock) || 0,
+      lowStockThreshold: Number(productData.lowStockThreshold) || 10,
+      batchId: productData.batchId || 'BATCH-' + Date.now().toString().slice(-4),
+      image: productData.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60',
+      expiryDate: productData.expiryDate || '',
+      createdAt: new Date().toISOString()
+    };
+    const updated = [newProduct, ...products];
+    setProducts(updated);
+    saveToLocalStorage({ products: updated });
+    try {
+      const saved = await api.addProduct(productData);
+      if (saved && saved.id) {
+        const synced = updated.map((p, idx) => idx === 0 ? saved : p);
+        setProducts(synced);
+        saveToLocalStorage({ products: synced });
+      }
+    } catch (err) {
+      console.warn('Backend sync error on add product', err);
+    }
   };
 
   const handleUpdateProduct = async (productId, updatedData) => {
-    const saved = await api.updateProduct(productId, updatedData);
-    setProducts(prev => prev.map(p => p.id === productId ? saved : p));
+    const updated = products.map(p => p.id === productId ? { ...p, ...updatedData } : p);
+    setProducts(updated);
+    saveToLocalStorage({ products: updated });
+    try {
+      await api.updateProduct(productId, updatedData);
+    } catch (err) {
+      console.warn('Backend sync error on update product', err);
+    }
   };
 
   const handleDeleteProduct = async (productId) => {
-    await api.deleteProduct(productId);
-    setProducts(prev => prev.filter(p => p.id !== productId));
+    const updated = products.filter(p => p.id !== productId);
+    setProducts(updated);
+    saveToLocalStorage({ products: updated });
+    try {
+      await api.deleteProduct(productId);
+    } catch (err) {
+      console.warn('Backend sync error on delete product', err);
+    }
   };
 
   const handleBulkDeleteProducts = async (ids) => {
-    await api.bulkDeleteProducts(ids);
-    setProducts(prev => prev.filter(p => !ids.includes(p.id)));
+    const updated = products.filter(p => !ids.includes(p.id));
+    setProducts(updated);
+    saveToLocalStorage({ products: updated });
+    try {
+      await api.bulkDeleteProducts(ids);
+    } catch (err) {
+      console.warn('Backend sync error on bulk delete products', err);
+    }
   };
 
   const handleBulkAddProducts = async (newProductsList) => {
@@ -300,23 +519,63 @@ export default function App() {
       if (res && res.products) {
         setProducts(res.products);
         if (res.categories) setCategories(res.categories);
+        saveToLocalStorage({ products: res.products, categories: res.categories });
         return { success: true, count: res.count };
       }
-      return { success: false, error: 'Failed to import products' };
+      throw new Error('Server returned invalid response');
     } catch (err) {
-      console.error('Failed to bulk add products', err);
-      return { success: false, error: err.message };
+      // Local fallback
+      const formatted = newProductsList.map((p, idx) => ({
+        id: 'PRD-' + Date.now().toString().slice(-4) + '-' + idx,
+        name: p.name,
+        brand: p.brand || 'General',
+        costPrice: Number(p.costPrice) || 0,
+        salePrice: Number(p.salePrice) || 0,
+        discount: 0,
+        stock: Number(p.stock) || 0,
+        lowStockThreshold: Number(p.lowStockThreshold) || 10,
+        batchId: p.batchId || 'BATCH-' + Date.now().toString().slice(-4),
+        image: p.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60',
+        expiryDate: p.expiryDate || '',
+        createdAt: new Date().toISOString()
+      }));
+      const newProds = [...formatted, ...products];
+      setProducts(newProds);
+      const newCats = [...new Set([...categories, ...newProductsList.map(p => p.brand).filter(Boolean)])];
+      setCategories(newCats);
+      saveToLocalStorage({ products: newProds, categories: newCats });
+      return { success: true, count: formatted.length };
     }
   };
 
   const handleAddCategory = async (name) => {
-    const res = await api.addCategory(name);
-    setCategories(res.categories);
+    const newCats = categories.includes(name) ? categories : [...categories, name];
+    setCategories(newCats);
+    saveToLocalStorage({ categories: newCats });
+    try {
+      const res = await api.addCategory(name);
+      if (res.categories) {
+        setCategories(res.categories);
+        saveToLocalStorage({ categories: res.categories });
+      }
+    } catch (err) {
+      console.warn('Backend sync error on add category', err);
+    }
   };
 
   const handleDeleteCategory = async (name) => {
-    const res = await api.deleteCategory(name);
-    setCategories(res.categories);
+    const newCats = categories.filter(c => c !== name);
+    setCategories(newCats);
+    saveToLocalStorage({ categories: newCats });
+    try {
+      const res = await api.deleteCategory(name);
+      if (res.categories) {
+        setCategories(res.categories);
+        saveToLocalStorage({ categories: res.categories });
+      }
+    } catch (err) {
+      console.warn('Backend sync error on delete category', err);
+    }
   };
 
   // Reset Demo Data
@@ -333,14 +592,36 @@ export default function App() {
       setActiveRep(res.data.reps[0]);
       setActiveCustomer(res.data.customers[0]);
       setSelectedItems({});
+      saveToLocalStorage({
+        shops: res.data.shops,
+        reps: res.data.reps,
+        customers: res.data.customers,
+        categories: res.data.categories,
+        products: res.data.products,
+        orders: res.data.orders
+      });
       setCurrentScreen('mainShops');
     }
   };
 
   // Restore Backup
   const handleRestoreBackup = async (data) => {
-    await api.restoreBackup(data);
-    await loadData();
+    const clean = sanitizeData(data);
+    await api.restoreBackup(clean);
+    setShops(clean.shops || []);
+    setReps(clean.reps || []);
+    setCustomers(clean.customers || []);
+    setCategories(clean.categories || []);
+    setProducts(clean.products || []);
+    setOrders(clean.orders || []);
+    saveToLocalStorage({
+      shops: clean.shops || [],
+      reps: clean.reps || [],
+      customers: clean.customers || [],
+      categories: clean.categories || [],
+      products: clean.products || [],
+      orders: clean.orders || []
+    });
   };
 
   // Log Out / Reset to Step 1 (Main Shops)
