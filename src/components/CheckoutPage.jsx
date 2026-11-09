@@ -123,12 +123,12 @@ export default function CheckoutPage({
         </div>
 
         <div>
-          <h2 className="text-base font-extrabold">{activeCustomer?.name}</h2>
-          <p className="text-xs text-blue-100 mt-0.5 truncate">{activeCustomer?.address}</p>
+          <h2 className="text-base font-extrabold">{activeCustomer?.name || 'Quick Customer Order'}</h2>
+          <p className="text-xs text-blue-100 mt-0.5 truncate">{activeCustomer?.address || 'Direct counter sale'}</p>
           <div className="flex items-center gap-2 mt-2 text-[11px] text-blue-200">
-            <span>Rep: <strong>{activeRep?.name}</strong></span>
+            <span>Rep: <strong>{activeRep?.name || 'Direct / Store Rep'}</strong></span>
             <span>•</span>
-            <span>Shop: <strong>{activeMainShop?.name?.split(' ')[0]}</strong></span>
+            <span>Shop: <strong>{activeMainShop?.name?.split(' ')[0] || 'Lumi Cosmetics'}</strong></span>
           </div>
         </div>
       </div>

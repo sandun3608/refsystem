@@ -851,18 +851,20 @@ export default function App() {
           </div>
         )}
 
-        {/* Modern Frosted Glass 5-Icon Bottom Tab Bar */}
-        <BottomNav
-          currentScreen={currentScreen}
-          onNavigate={(screenId) => {
-            setCurrentScreen(screenId);
-            setSearchTerm('');
-          }}
-          activeMainShop={activeMainShop}
-          activeRep={activeRep}
-          activeCustomer={activeCustomer}
-          unreadCount={unreadNotificationsCount}
-        />
+        {/* Modern Frosted Glass 5-Icon Bottom Tab Bar (hidden during Checkout to prevent blocking Order buttons) */}
+        {currentScreen !== 'checkout' && (
+          <BottomNav
+            currentScreen={currentScreen}
+            onNavigate={(screenId) => {
+              setCurrentScreen(screenId);
+              setSearchTerm('');
+            }}
+            activeMainShop={activeMainShop}
+            activeRep={activeRep}
+            activeCustomer={activeCustomer}
+            unreadCount={unreadNotificationsCount}
+          />
+        )}
 
         {/* Side Navigation Drawer (the 3 lines hamburger menu) */}
         <Sidebar

@@ -52,16 +52,26 @@ export default function DashboardPage({
   }, 0);
 
   return (
-    <div className="pb-28 px-3 pt-2 space-y-3">
+    <div className={`px-3 pt-2 space-y-3 ${selectedCount > 0 ? 'pb-48' : 'pb-28'}`}>
       
       {/* Session Breadcrumb Pill */}
-      <div className="flex items-center justify-between bg-white px-3 py-2 rounded-2xl border border-slate-200/80 shadow-2xs">
-        <div className="flex items-center space-x-2 truncate">
-          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md uppercase">Order For</span>
-          <span className="text-xs font-bold text-slate-800 truncate">{activeCustomer?.name}</span>
+      {activeCustomer ? (
+        <div className="flex items-center justify-between bg-white px-3 py-2 rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center space-x-2 truncate">
+            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md uppercase">Order For</span>
+            <span className="text-xs font-bold text-slate-800 truncate">{activeCustomer.name}</span>
+          </div>
+          <span className="text-[10px] text-slate-400 font-medium">Rep: {activeRep?.name?.split(' ')[0] || 'Direct'}</span>
         </div>
-        <span className="text-[10px] text-slate-400 font-medium">Rep: {activeRep?.name?.split(' ')[0]}</span>
-      </div>
+      ) : (
+        <div className="flex items-center justify-between bg-white px-3 py-2 rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center space-x-2 truncate">
+            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md uppercase">Inventory</span>
+            <span className="text-xs font-bold text-slate-800 truncate">Products Catalog</span>
+          </div>
+          <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-md">Quick Order</span>
+        </div>
+      )}
 
       {/* Brand / Category Horizontal Scrollable Chips ("brand name tika udin side karanna puluwan") */}
       <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-1">
@@ -116,17 +126,20 @@ export default function DashboardPage({
                     <button
                       type="button"
                       onClick={() => onToggleSelectItem(product)}
-                      className={`mt-1 flex-shrink-0 w-6 h-6 rounded-lg flex items-center justify-center border-2 transition-all duration-150 ${
+                      className={`mt-1 flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center border-2 transition-all duration-150 ${
                         isSelected
-                          ? 'bg-blue-600 border-blue-600 text-white shadow-xs scale-105'
-                          : 'border-slate-300 bg-slate-50 hover:border-blue-400'
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-105'
+                          : 'border-slate-300 bg-white hover:border-blue-400 active:scale-95'
                       }`}
                     >
-                      {isSelected && <Check className="w-4 h-4 stroke-[3]" />}
+                      {isSelected ? <Check className="w-4 h-4 stroke-[3]" /> : <div className="w-2 h-2 rounded-full bg-slate-300" />}
                     </button>
 
-                    {/* Product Image */}
-                    <div className="relative flex-shrink-0">
+                    {/* Product Image - Clicking toggles selection */}
+                    <div 
+                      onClick={() => onToggleSelectItem(product)}
+                      className="relative flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
+                    >
                       <img
                         src={product.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=200&auto=format&fit=crop&q=60'}
                         alt={product.name}
@@ -139,29 +152,34 @@ export default function DashboardPage({
                       )}
                     </div>
 
-                    {/* Product Details */}
+                    {/* Product Details - Title area clickable */}
                     <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                          {product.brand}
-                        </span>
-                        
-                        {/* Stock status with RED Low Stock indicator */}
-                        <div className="text-right">
-                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                            isLowStock 
-                              ? 'bg-red-50 text-red-600 border border-red-200' 
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          }`}>
-                            Stock: {product.stock}
+                      <div 
+                        onClick={() => onToggleSelectItem(product)}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                            {product.brand}
                           </span>
+                          
+                          {/* Stock status with RED Low Stock indicator */}
+                          <div className="text-right">
+                            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                              isLowStock 
+                                ? 'bg-red-50 text-red-600 border border-red-200' 
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            }`}>
+                              Stock: {product.stock}
+                            </span>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Product Name */}
-                      <h4 className="text-xs font-bold text-slate-900 leading-snug line-clamp-2">
-                        {product.name}
-                      </h4>
+                        {/* Product Name */}
+                        <h4 className="text-xs font-bold text-slate-900 leading-snug line-clamp-2 mt-0.5">
+                          {product.name}
+                        </h4>
+                      </div>
 
                       {/* Low Stock text in RED as required */}
                       {isLowStock && (
@@ -268,26 +286,29 @@ export default function DashboardPage({
 
       {/* Floating Sticky Bottom Bar: "Create Order" (when at least 1 item is ticked) */}
       {selectedCount > 0 && (
-        <div className="fixed bottom-0 inset-x-0 z-40 p-3 max-w-md mx-auto">
-          <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 text-white p-3.5 rounded-2xl shadow-2xl border border-blue-400/40 flex items-center justify-between backdrop-blur-md">
-            <div>
+        <div className="fixed bottom-[74px] inset-x-2.5 z-50 max-w-md mx-auto pointer-events-none animate-in slide-in-from-bottom-5 duration-200">
+          <div className="pointer-events-auto bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white p-3 rounded-2xl shadow-[0_12px_32px_-4px_rgba(37,99,235,0.45)] border border-blue-400/50 flex items-center justify-between backdrop-blur-xl">
+            <div className="pl-1">
               <div className="flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-white text-blue-600 text-xs font-extrabold flex items-center justify-center">
+                <span className="w-5 h-5 rounded-full bg-white text-blue-700 text-xs font-black flex items-center justify-center shadow-xs">
                   {selectedCount}
                 </span>
-                <span className="text-xs font-bold text-blue-100">Items Selected</span>
+                <span className="text-xs font-extrabold text-blue-100">
+                  {selectedCount === 1 ? 'Item Selected' : 'Items Selected'}
+                </span>
               </div>
-              <p className="text-sm font-extrabold text-white mt-0.5">
+              <p className="text-sm font-black text-white mt-0.5 tracking-tight">
                 Rs. {Math.round(selectedTotal).toLocaleString()}
               </p>
             </div>
 
             <button
+              type="button"
               onClick={onCreateOrder}
-              className="flex items-center gap-2 px-5 py-2.5 bg-white text-blue-700 hover:bg-blue-50 font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 group"
+              className="flex items-center gap-2 px-5 py-2.5 bg-white text-blue-700 hover:bg-blue-50 active:bg-blue-100 font-black text-xs rounded-xl shadow-lg transition-all active:scale-95 group cursor-pointer"
             >
               <span>Create Order</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform stroke-[2.5]" />
             </button>
           </div>
         </div>
