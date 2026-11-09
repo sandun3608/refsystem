@@ -263,6 +263,64 @@ app.delete('/api/products/:id', async (req, res) => {
   }
 });
 
+// Bulk Add Products (from Excel Import)
+app.post('/api/products/bulk-add', async (req, res) => {
+  try {
+    const { products: rawProducts } = req.body;
+    if (!Array.isArray(rawProducts) || rawProducts.length === 0) {
+      return res.status(400).json({ error: 'products must be a non-empty array' });
+    }
+
+    const db = await readDb();
+    if (!Array.isArray(db.categories)) db.categories = [];
+    if (!Array.isArray(db.products)) db.products = [];
+
+    const addedProducts = [];
+    const timestamp = Date.now();
+
+    rawProducts.forEach((p, idx) => {
+      const name = String(p.name || '').trim();
+      if (!name) return; // skip empty
+
+      const brand = String(p.brand || 'General').trim();
+      // Auto-register new category if not already in categories
+      if (brand && !db.categories.includes(brand)) {
+        db.categories.push(brand);
+      }
+
+      const newProduct = {
+        id: p.id || `PRD-${timestamp.toString().slice(-4)}-${idx + 1}`,
+        name,
+        brand,
+        costPrice: Number(p.costPrice) || 0,
+        salePrice: Number(p.salePrice) || 0,
+        discount: Number(p.discount) || 0,
+        stock: Number(p.stock) || 0,
+        lowStockThreshold: Number(p.lowStockThreshold) || 10,
+        batchId: String(p.batchId || `BATCH-2026-${Math.floor(100 + Math.random() * 900)}`),
+        image: p.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60',
+        expiryDate: p.expiryDate || '',
+        createdAt: new Date().toISOString()
+      };
+
+      addedProducts.push(newProduct);
+      db.products.unshift(newProduct);
+    });
+
+    await writeDb(db);
+
+    res.json({
+      success: true,
+      count: addedProducts.length,
+      products: db.products,
+      categories: db.categories,
+      added: addedProducts
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Bulk Delete Products
 app.post('/api/products/bulk-delete', async (req, res) => {
   try {

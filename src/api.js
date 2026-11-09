@@ -123,6 +123,16 @@ export const api = {
     return await res.json();
   },
 
+  // Bulk Add Products (from Excel Import)
+  async bulkAddProducts(products) {
+    const res = await fetch(`${API_BASE}/products/bulk-add`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ products })
+    });
+    return await res.json();
+  },
+
   // Bulk Delete Products
   async bulkDeleteProducts(ids) {
     const res = await fetch(`${API_BASE}/products/bulk-delete`, {

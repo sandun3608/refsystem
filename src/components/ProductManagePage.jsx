@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Plus, 
   FileSpreadsheet, 
@@ -14,7 +14,10 @@ import {
   Tag, 
   SlidersHorizontal,
   CheckSquare,
-  Square
+  Square,
+  Download,
+  UploadCloud,
+  CheckCircle2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -25,18 +28,22 @@ export default function ProductManagePage({
   onUpdateProduct,
   onDeleteProduct,
   onBulkDeleteProducts,
+  onBulkAddProducts,
   onAddCategory,
   onDeleteCategory
 }) {
+  const fileInputRef = useRef(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   
-  // Modals state
+  // Modals & Import state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
   const [bulkSelectedIds, setBulkSelectedIds] = useState([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importFeedback, setImportFeedback] = useState(null);
   
   // Category search inside category modal
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
@@ -80,13 +87,202 @@ export default function ProductManagePage({
       'Current Stock': p.stock,
       'Low Stock Threshold': p.lowStockThreshold || 10,
       'Batch ID': p.batchId || '',
-      'Expiry Date': p.expiryDate || ''
+      'Expiry Date': p.expiryDate || '',
+      'Image URL': p.image || ''
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
+    worksheet['!cols'] = [
+      { wch: 6 },
+      { wch: 18 },
+      { wch: 32 },
+      { wch: 22 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 35 }
+    ];
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Cosmetics Inventory');
     XLSX.writeFile(workbook, `Cosmetics_Inventory_${Date.now()}.xlsx`);
+  };
+
+  // Download Sample Excel Template
+  const handleDownloadTemplate = () => {
+    const sampleData = [
+      {
+        'Product Name': 'Matte Velvet Lipstick #05 - Rose',
+        'Brand / Category': 'Lipstick & Lip Care',
+        'Cost Price (Rs.)': 1250,
+        'Sale Price (Rs.)': 1950,
+        'Current Stock': 50,
+        'Low Stock Threshold': 10,
+        'Batch ID': 'BATCH-2026-101',
+        'Expiry Date': '2028-12-31',
+        'Image URL': 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400&auto=format&fit=crop&q=60'
+      },
+      {
+        'Product Name': 'Hydrating Vitamin C Serum 30ml',
+        'Brand / Category': 'Skincare',
+        'Cost Price (Rs.)': 2800,
+        'Sale Price (Rs.)': 4200,
+        'Current Stock': 35,
+        'Low Stock Threshold': 8,
+        'Batch ID': 'BATCH-2026-102',
+        'Expiry Date': '2028-06-30',
+        'Image URL': 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&auto=format&fit=crop&q=60'
+      },
+      {
+        'Product Name': 'Waterproof Volume Mascara Extra Black',
+        'Brand / Category': 'Eye Makeup',
+        'Cost Price (Rs.)': 950,
+        'Sale Price (Rs.)': 1600,
+        'Current Stock': 65,
+        'Low Stock Threshold': 15,
+        'Batch ID': 'BATCH-2026-103',
+        'Expiry Date': '2027-10-15',
+        'Image URL': 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=400&auto=format&fit=crop&q=60'
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(sampleData);
+    worksheet['!cols'] = [
+      { wch: 36 },
+      { wch: 24 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 40 }
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
+    XLSX.writeFile(workbook, 'Cosmetics_Product_Import_Template.xlsx');
+  };
+
+  // Handle Import Excel File
+  const handleImportExcel = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    setImportFeedback(null);
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const workbook = XLSX.read(bstr, { type: 'binary', cellDates: true });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+        if (!rawRows || rawRows.length === 0) {
+          setIsImporting(false);
+          setImportFeedback({ type: 'error', message: 'No data rows found in the uploaded file.' });
+          return;
+        }
+
+        const cleanKey = (k) => String(k || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        const parsedProducts = [];
+        for (const row of rawRows) {
+          const keys = Object.keys(row);
+          const findVal = (possibleKeys) => {
+            for (const pk of possibleKeys) {
+              const match = keys.find(k => cleanKey(k) === cleanKey(pk));
+              if (match !== undefined && row[match] !== '' && row[match] !== null) return row[match];
+            }
+            return undefined;
+          };
+
+          const name = findVal(['Product Name', 'Name', 'Product', 'Item Name', 'Item', 'Title', 'Description']);
+          if (!name || !String(name).trim()) continue; // skip rows without product name
+
+          const brand = String(findVal(['Brand / Category', 'Brand', 'Category', 'Cat', 'Group', 'Type']) || 'General').trim();
+          const costPrice = Number(findVal(['Cost Price (Rs.)', 'Cost Price', 'Cost', 'CostPrice', 'Buy Price'])) || 0;
+          const salePrice = Number(findVal(['Sale Price (Rs.)', 'Sale Price', 'Price', 'SalePrice', 'Selling Price'])) || 0;
+          const stock = Number(findVal(['Current Stock', 'Stock', 'Quantity', 'Qty', 'Count', 'Units'])) || 0;
+          const lowStockThreshold = Number(findVal(['Low Stock Threshold', 'Low Stock', 'Min Stock', 'Threshold', 'LowStockThreshold'])) || 10;
+          const batchId = String(findVal(['Batch ID', 'Batch', 'Batch No', 'Batch Number', 'BatchId']) || `BATCH-2026-${Math.floor(100 + Math.random() * 900)}`).trim();
+          
+          let expiryDate = findVal(['Expiry Date', 'Expiry', 'Exp Date', 'EXP', 'ExpiryDate']) || '';
+          if (expiryDate instanceof Date) {
+            expiryDate = expiryDate.toISOString().split('T')[0];
+          } else if (typeof expiryDate === 'number') {
+            const jsDate = new Date(Math.round((expiryDate - 25569) * 86400 * 1000));
+            expiryDate = !isNaN(jsDate.getTime()) ? jsDate.toISOString().split('T')[0] : '';
+          } else {
+            expiryDate = String(expiryDate).trim();
+          }
+
+          const image = String(findVal(['Image URL', 'Image', 'Photo', 'Picture', 'Img']) || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60').trim();
+
+          parsedProducts.push({
+            name: String(name).trim(),
+            brand: brand || 'General',
+            costPrice,
+            salePrice,
+            stock,
+            lowStockThreshold,
+            batchId,
+            expiryDate,
+            image
+          });
+        }
+
+        if (parsedProducts.length === 0) {
+          setIsImporting(false);
+          setImportFeedback({ 
+            type: 'error', 
+            message: 'No valid products found! Make sure columns include "Product Name" or "Name".' 
+          });
+          return;
+        }
+
+        if (onBulkAddProducts) {
+          const res = await onBulkAddProducts(parsedProducts);
+          setIsImporting(false);
+          if (res && res.success) {
+            setImportFeedback({
+              type: 'success',
+              message: `✅ Successfully imported ${res.count || parsedProducts.length} products to inventory!`
+            });
+            setTimeout(() => setImportFeedback(null), 5000);
+          } else {
+            setImportFeedback({
+              type: 'error',
+              message: `Error importing: ${res?.error || 'Unknown server error'}`
+            });
+          }
+        } else {
+          // Fallback if prop not provided
+          for (const prod of parsedProducts) {
+            onAddProduct(prod);
+          }
+          setIsImporting(false);
+          setImportFeedback({
+            type: 'success',
+            message: `✅ Imported ${parsedProducts.length} products!`
+          });
+          setTimeout(() => setImportFeedback(null), 5000);
+        }
+
+      } catch (err) {
+        console.error('Excel parse error', err);
+        setIsImporting(false);
+        setImportFeedback({ type: 'error', message: 'Failed to read Excel file: ' + err.message });
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+
+    reader.readAsBinaryString(file);
   };
 
   // Open Edit Modal
@@ -153,9 +349,18 @@ export default function ProductManagePage({
   );
 
   return (
-    <div className="pb-28 px-3 pt-2 space-y-4 max-w-md mx-auto">
+    <div className="pb-28 px-3 pt-2 space-y-3.5 max-w-md mx-auto">
       
-      {/* Top Action Buttons Grid */}
+      {/* Hidden File Input for Excel Import */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImportExcel}
+        accept=".xlsx, .xls, .csv"
+        className="hidden"
+      />
+
+      {/* Top Hero Action Buttons Grid */}
       <div className="grid grid-cols-2 gap-2">
         {/* Add New Product Button */}
         <button
@@ -163,48 +368,79 @@ export default function ProductManagePage({
             setFormData(initialFormState);
             setIsAddModalOpen(true);
           }}
-          className="flex items-center justify-center gap-2 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold shadow-md shadow-blue-500/20 active:scale-95 transition-all"
+          className="flex items-center justify-center gap-2 p-3.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-2xl text-xs font-bold shadow-md shadow-blue-500/20 transition-all"
         >
           <Plus className="w-4 h-4 stroke-[3]" />
           <span>Add New Product</span>
         </button>
 
-        {/* Export Excel Button ("export exel file button") */}
+        {/* Import Excel Sheet Button ("product add eke enna one export ekk neme import excel sheet ekk") */}
         <button
-          onClick={handleExportExcel}
-          className="flex items-center justify-center gap-2 p-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isImporting}
+          className="flex items-center justify-center gap-2 p-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:opacity-70 text-white rounded-2xl text-xs font-bold shadow-md shadow-emerald-500/20 transition-all"
         >
           <FileSpreadsheet className="w-4 h-4" />
-          <span>Export Excel</span>
+          <span>{isImporting ? 'Importing Products...' : 'Import Excel Sheet'}</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        {/* Manage Categories Button ("add new catagory enna ona, delete catagory enna ona") */}
+      {/* Secondary Quick Action Row: Categories, Sample Template, Bulk Delete */}
+      <div className="grid grid-cols-3 gap-2">
+        {/* Manage Categories */}
         <button
           onClick={() => setIsCategoryModalOpen(true)}
-          className="flex items-center justify-center gap-2 p-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 shadow-2xs transition-all"
+          className="flex items-center justify-center gap-1.5 p-2.5 bg-white hover:bg-purple-50/50 text-slate-700 rounded-xl text-[11px] font-bold border border-slate-200/90 shadow-2xs transition-all"
         >
-          <FolderPlus className="w-4 h-4 text-purple-600" />
-          <span>Categories ({categories.length})</span>
+          <FolderPlus className="w-3.5 h-3.5 text-purple-600" />
+          <span className="truncate">Categories ({categories.length})</span>
         </button>
 
-        {/* Bulk Delete Mode Toggle ("product delete button eka enna ona (delete eka ebuwama wenama product okkoma load wela tick mark dala delete karanna)") */}
+        {/* Sample Excel Template */}
+        <button
+          onClick={handleDownloadTemplate}
+          className="flex items-center justify-center gap-1.5 p-2.5 bg-white hover:bg-emerald-50 text-emerald-700 rounded-xl text-[11px] font-bold border border-emerald-200/90 shadow-2xs transition-all"
+          title="Download Sample Excel Template to fill products"
+        >
+          <Download className="w-3.5 h-3.5 text-emerald-600" />
+          <span className="truncate">Sample Excel</span>
+        </button>
+
+        {/* Bulk Delete Mode Toggle */}
         <button
           onClick={() => {
             setIsBulkDeleteMode(!isBulkDeleteMode);
             setBulkSelectedIds([]);
           }}
-          className={`flex items-center justify-center gap-2 p-2.5 rounded-xl text-xs font-bold border transition-all ${
+          className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl text-[11px] font-bold border transition-all ${
             isBulkDeleteMode
               ? 'bg-red-600 text-white border-red-600 shadow-xs'
-              : 'bg-white hover:bg-red-50 text-red-600 border-red-200'
+              : 'bg-white hover:bg-red-50 text-red-600 border-red-200/90 shadow-2xs'
           }`}
         >
-          <Trash2 className="w-4 h-4" />
-          <span>{isBulkDeleteMode ? 'Cancel Bulk Delete' : 'Bulk Delete Mode'}</span>
+          <Trash2 className="w-3.5 h-3.5" />
+          <span className="truncate">{isBulkDeleteMode ? 'Cancel' : 'Bulk Delete'}</span>
         </button>
       </div>
+
+      {/* Import Feedback Toast / Banner */}
+      {importFeedback && (
+        <div className={`p-3 rounded-2xl flex items-center justify-between text-xs font-semibold animate-in fade-in duration-200 ${
+          importFeedback.type === 'success' 
+            ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' 
+            : 'bg-red-50 border border-red-200 text-red-800'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {importFeedback.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+            )}
+            <span>{importFeedback.message}</span>
+          </div>
+          <button onClick={() => setImportFeedback(null)} className="text-slate-400 hover:text-slate-700 ml-2">✕</button>
+        </div>
+      )}
 
       {/* Bulk Delete Action Banner */}
       {isBulkDeleteMode && (
@@ -227,8 +463,20 @@ export default function ProductManagePage({
         </div>
       )}
 
+      {/* Search Input Box */}
+      <div className="relative">
+        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        <input
+          type="text"
+          placeholder="Search products by name, brand, batch..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-9 pr-4 py-2.5 bg-white text-xs text-slate-900 border border-slate-200 rounded-xl outline-none focus:border-blue-500 shadow-2xs"
+        />
+      </div>
+
       {/* Categories Horizontal Filter Chips */}
-      <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-1">
+      <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5">
         {['All', ...categories].map((cat) => (
           <button
             key={cat}
@@ -250,6 +498,16 @@ export default function ProductManagePage({
           <span className="text-xs font-bold text-slate-700">
             Catalog Products ({filteredProducts.length})
           </span>
+          {products.length > 0 && (
+            <button
+              onClick={handleExportExcel}
+              className="text-[11px] font-bold text-slate-500 hover:text-emerald-700 flex items-center gap-1 transition-colors"
+              title="Export current inventory to Excel"
+            >
+              <FileSpreadsheet className="w-3 h-3" />
+              <span>Export</span>
+            </button>
+          )}
         </div>
 
         {filteredProducts.map((product) => {
@@ -303,7 +561,7 @@ export default function ProductManagePage({
                 </div>
               </div>
 
-              {/* Edit & Recycle Bin Delete Icon at far right ("delete product kiyala recycle bin ekk kerolen enna ona awasanetama") */}
+              {/* Edit & Recycle Bin Delete Icon at far right */}
               <div className="flex items-center space-x-1 pl-1 flex-shrink-0">
                 <button
                   type="button"

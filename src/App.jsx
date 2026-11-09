@@ -294,6 +294,21 @@ export default function App() {
     setProducts(prev => prev.filter(p => !ids.includes(p.id)));
   };
 
+  const handleBulkAddProducts = async (newProductsList) => {
+    try {
+      const res = await api.bulkAddProducts(newProductsList);
+      if (res && res.products) {
+        setProducts(res.products);
+        if (res.categories) setCategories(res.categories);
+        return { success: true, count: res.count };
+      }
+      return { success: false, error: 'Failed to import products' };
+    } catch (err) {
+      console.error('Failed to bulk add products', err);
+      return { success: false, error: err.message };
+    }
+  };
+
   const handleAddCategory = async (name) => {
     const res = await api.addCategory(name);
     setCategories(res.categories);
@@ -486,6 +501,7 @@ export default function App() {
               onUpdateProduct={handleUpdateProduct}
               onDeleteProduct={handleDeleteProduct}
               onBulkDeleteProducts={handleBulkDeleteProducts}
+              onBulkAddProducts={handleBulkAddProducts}
               onAddCategory={handleAddCategory}
               onDeleteCategory={handleDeleteCategory}
             />
