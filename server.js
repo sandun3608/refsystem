@@ -360,7 +360,7 @@ app.delete('/api/products/:id', async (req, res) => {
 // Bulk Add Products (from Excel Import)
 app.post('/api/products/bulk-add', async (req, res) => {
   try {
-    const { products: rawProducts, shopId: bulkShopId } = req.body;
+    const { products: rawProducts, shopId: bulkShopId, duplicateAction = 'replace' } = req.body;
     if (!Array.isArray(rawProducts) || rawProducts.length === 0) {
       return res.status(400).json({ error: 'products must be a non-empty array' });
     }
@@ -371,7 +371,9 @@ app.post('/api/products/bulk-add', async (req, res) => {
 
     const defaultShopId = bulkShopId || (db.shops && db.shops.length > 0 ? db.shops[0].id : '');
 
-    const addedProducts = [];
+    let addedCount = 0;
+    let replacedCount = 0;
+    let skippedCount = 0;
     const timestamp = Date.now();
 
     rawProducts.forEach((p, idx) => {
@@ -384,34 +386,66 @@ app.post('/api/products/bulk-add', async (req, res) => {
         db.categories.push(brand);
       }
 
-      const newProduct = {
-        id: p.id || `PRD-${timestamp.toString().slice(-4)}-${idx + 1}`,
-        name,
-        brand,
-        shopId: p.shopId || defaultShopId || '',
-        costPrice: Number(p.costPrice) || 0,
-        salePrice: Number(p.salePrice) || 0,
-        discount: Number(p.discount) || 0,
-        stock: Number(p.stock) || 0,
-        lowStockThreshold: Number(p.lowStockThreshold) || 10,
-        batchId: String(p.batchId || `BATCH-2026-${Math.floor(100 + Math.random() * 900)}`),
-        image: p.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60',
-        expiryDate: p.expiryDate || '',
-        createdAt: new Date().toISOString()
-      };
+      const targetShopId = p.shopId || defaultShopId || '';
 
-      addedProducts.push(newProduct);
-      db.products.unshift(newProduct);
+      // Check if product with identical name already exists in target shop
+      const existingIdx = db.products.findIndex(
+        item => item.shopId === targetShopId && item.name.trim().toLowerCase() === name.toLowerCase()
+      );
+
+      if (existingIdx !== -1) {
+        if (duplicateAction === 'replace') {
+          // Replace/update existing product with file data
+          db.products[existingIdx] = {
+            ...db.products[existingIdx],
+            brand,
+            costPrice: Number(p.costPrice) || db.products[existingIdx].costPrice,
+            salePrice: Number(p.salePrice) || db.products[existingIdx].salePrice,
+            stock: Number(p.stock) !== undefined ? Number(p.stock) : db.products[existingIdx].stock,
+            lowStockThreshold: Number(p.lowStockThreshold) || db.products[existingIdx].lowStockThreshold || 10,
+            batchId: String(p.batchId || db.products[existingIdx].batchId || `BATCH-2026-${Math.floor(100 + Math.random() * 900)}`),
+            image: p.image || db.products[existingIdx].image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60',
+            expiryDate: p.expiryDate || db.products[existingIdx].expiryDate || '',
+            updatedAt: new Date().toISOString()
+          };
+          replacedCount++;
+        } else {
+          // Skip duplicate
+          skippedCount++;
+        }
+      } else {
+        // Add as a new product
+        const newProduct = {
+          id: p.id || `PRD-${timestamp.toString().slice(-4)}-${idx + 1}`,
+          name,
+          brand,
+          shopId: targetShopId,
+          costPrice: Number(p.costPrice) || 0,
+          salePrice: Number(p.salePrice) || 0,
+          discount: Number(p.discount) || 0,
+          stock: Number(p.stock) || 0,
+          lowStockThreshold: Number(p.lowStockThreshold) || 10,
+          batchId: String(p.batchId || `BATCH-2026-${Math.floor(100 + Math.random() * 900)}`),
+          image: p.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60',
+          expiryDate: p.expiryDate || '',
+          createdAt: new Date().toISOString()
+        };
+
+        db.products.unshift(newProduct);
+        addedCount++;
+      }
     });
 
     await writeDb(db);
 
     res.json({
       success: true,
-      count: addedProducts.length,
+      count: addedCount + replacedCount,
+      addedCount,
+      replacedCount,
+      skippedCount,
       products: db.products,
-      categories: db.categories,
-      added: addedProducts
+      categories: db.categories
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

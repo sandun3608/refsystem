@@ -359,6 +359,14 @@ export default function App() {
     setCurrentScreen('dashboard');
   };
 
+  // Skip Rep & Customer Shop selection -> Direct entry to Dashboard
+  const handleSkipAndGoAhead = () => {
+    setActiveRep(null);
+    setActiveCustomer(null);
+    setSelectedItems({});
+    setCurrentScreen('dashboard');
+  };
+
   // Order item selection toggles
   const handleToggleSelectItem = (product) => {
     setSelectedItems(prev => {
@@ -725,7 +733,7 @@ export default function App() {
     }
   };
 
-  const handleBulkAddProducts = async (newProductsList) => {
+  const handleBulkAddProducts = async (newProductsList, duplicateAction = 'replace') => {
     const shopId = activeMainShop?.id || (shops.length > 0 ? shops[0].id : '');
     if (!shopId) {
       alert('Error: Please add or select an Importer Shop before importing products.');
@@ -736,39 +744,87 @@ export default function App() {
       shopId: p.shopId || shopId
     }));
     try {
-      const res = await api.bulkAddProducts(productsWithShop);
+      const res = await api.bulkAddProducts(productsWithShop, duplicateAction);
       if (res && res.products) {
         // Sanitize to only keep products with valid shops
         const sanitized = sanitizeData({ shops, products: res.products }).products || [];
         setProducts(sanitized);
         if (res.categories) setCategories(res.categories);
         saveToLocalStorage({ products: sanitized, categories: res.categories });
-        return { success: true, count: res.count };
+        return { 
+          success: true, 
+          count: res.count,
+          addedCount: res.addedCount,
+          replacedCount: res.replacedCount,
+          skippedCount: res.skippedCount
+        };
       }
       throw new Error('Server returned invalid response');
     } catch (err) {
-      // Local fallback
-      const formatted = productsWithShop.map((p, idx) => ({
-        id: 'PRD-' + Date.now().toString().slice(-4) + '-' + idx,
-        name: p.name,
-        brand: p.brand || 'General',
-        shopId: p.shopId || shopId,
-        costPrice: Number(p.costPrice) || 0,
-        salePrice: Number(p.salePrice) || 0,
-        discount: 0,
-        stock: Number(p.stock) || 0,
-        lowStockThreshold: Number(p.lowStockThreshold) || 10,
-        batchId: p.batchId || 'BATCH-' + Date.now().toString().slice(-4),
-        image: p.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60',
-        expiryDate: p.expiryDate || '',
-        createdAt: new Date().toISOString()
-      }));
-      const newProds = [...formatted, ...products];
-      setProducts(newProds);
+      // Local fallback with duplicate replacement/skip logic
+      let currentProds = [...products];
+      let addedCount = 0;
+      let replacedCount = 0;
+      let skippedCount = 0;
+      const timestamp = Date.now();
+
+      productsWithShop.forEach((p, idx) => {
+        const name = String(p.name || '').trim();
+        if (!name) return;
+
+        const existingIdx = currentProds.findIndex(
+          item => item.shopId === shopId && item.name.trim().toLowerCase() === name.toLowerCase()
+        );
+
+        if (existingIdx !== -1) {
+          if (duplicateAction === 'replace') {
+            currentProds[existingIdx] = {
+              ...currentProds[existingIdx],
+              brand: p.brand || currentProds[existingIdx].brand || 'General',
+              costPrice: Number(p.costPrice) || currentProds[existingIdx].costPrice,
+              salePrice: Number(p.salePrice) || currentProds[existingIdx].salePrice,
+              stock: Number(p.stock) !== undefined ? Number(p.stock) : currentProds[existingIdx].stock,
+              lowStockThreshold: Number(p.lowStockThreshold) || currentProds[existingIdx].lowStockThreshold || 10,
+              batchId: p.batchId || currentProds[existingIdx].batchId,
+              image: p.image || currentProds[existingIdx].image,
+              expiryDate: p.expiryDate || currentProds[existingIdx].expiryDate,
+              updatedAt: new Date().toISOString()
+            };
+            replacedCount++;
+          } else {
+            skippedCount++;
+          }
+        } else {
+          currentProds.unshift({
+            id: 'PRD-' + timestamp.toString().slice(-4) + '-' + idx,
+            name,
+            brand: p.brand || 'General',
+            shopId: p.shopId || shopId,
+            costPrice: Number(p.costPrice) || 0,
+            salePrice: Number(p.salePrice) || 0,
+            discount: 0,
+            stock: Number(p.stock) || 0,
+            lowStockThreshold: Number(p.lowStockThreshold) || 10,
+            batchId: p.batchId || 'BATCH-' + Date.now().toString().slice(-4),
+            image: p.image || 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=60',
+            expiryDate: p.expiryDate || '',
+            createdAt: new Date().toISOString()
+          });
+          addedCount++;
+        }
+      });
+
+      setProducts(currentProds);
       const newCats = [...new Set([...categories, ...newProductsList.map(p => p.brand).filter(Boolean)])];
       setCategories(newCats);
-      saveToLocalStorage({ products: newProds, categories: newCats });
-      return { success: true, count: formatted.length };
+      saveToLocalStorage({ products: currentProds, categories: newCats });
+      return { 
+        success: true, 
+        count: addedCount + replacedCount,
+        addedCount,
+        replacedCount,
+        skippedCount 
+      };
     }
   };
 
@@ -939,6 +995,7 @@ export default function App() {
               reps={currentShopReps}
               onSelectRep={handleSelectRep}
               onAddRep={handleAddRep}
+              onSkipAndGoAhead={handleSkipAndGoAhead}
               mainShop={activeMainShop}
             />
           )}
@@ -949,6 +1006,7 @@ export default function App() {
               customers={currentShopCustomers}
               onSelectCustomer={handleSelectCustomer}
               onAddCustomer={handleAddCustomer}
+              onSkipAndGoAhead={handleSkipAndGoAhead}
               mainShop={activeMainShop}
               rep={activeRep}
             />

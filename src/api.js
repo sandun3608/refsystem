@@ -153,11 +153,11 @@ export const api = {
   },
 
   // Bulk Add Products (from Excel Import)
-  async bulkAddProducts(products) {
+  async bulkAddProducts(products, duplicateAction = 'replace') {
     const res = await fetch(`${API_BASE}/products/bulk-add`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ products })
+      body: JSON.stringify({ products, duplicateAction })
     });
     return await res.json();
   },

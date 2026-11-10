@@ -58,6 +58,11 @@ export default function ProductManagePage({
   const [importFeedback, setImportFeedback] = useState(null);
   const [formError, setFormError] = useState('');
 
+  // Import Confirmation & Duplicate Handling Modal states
+  const [isImportConfirmModalOpen, setIsImportConfirmModalOpen] = useState(false);
+  const [pendingImportData, setPendingImportData] = useState(null);
+  const [isProcessingImport, setIsProcessingImport] = useState(false);
+
   // Batch-wise Stock Intake state for Edit Modal
   const [isAddingNewBatch, setIsAddingNewBatch] = useState(false);
   const [newBatchData, setNewBatchData] = useState({
@@ -74,7 +79,7 @@ export default function ProductManagePage({
 
   // Lock background body scroll completely when modals are open
   useEffect(() => {
-    if (isAddModalOpen || isEditModalOpen) {
+    if (isAddModalOpen || isEditModalOpen || isImportConfirmModalOpen) {
       const scrollY = window.scrollY;
       document.body.style.position = 'fixed';
       document.body.style.top = `-${scrollY}px`;
@@ -88,7 +93,7 @@ export default function ProductManagePage({
         window.scrollTo(0, scrollY);
       };
     }
-  }, [isAddModalOpen, isEditModalOpen]);
+  }, [isAddModalOpen, isEditModalOpen, isImportConfirmModalOpen]);
 
   // Product Form state (Add & Edit)
   const initialFormState = {
@@ -206,7 +211,7 @@ export default function ProductManagePage({
     XLSX.writeFile(workbook, 'Cosmetics_Product_Import_Template.xlsx');
   };
 
-  // Handle Import Excel File
+  // Handle Import Excel File - Reads file & opens confirmation/duplicate dialog
   const handleImportExcel = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -287,33 +292,30 @@ export default function ProductManagePage({
           return;
         }
 
-        if (onBulkAddProducts) {
-          const res = await onBulkAddProducts(parsedProducts);
-          setIsImporting(false);
-          if (res && res.success) {
-            setImportFeedback({
-              type: 'success',
-              message: `✅ Successfully imported ${res.count || parsedProducts.length} products to inventory!`
-            });
-            setTimeout(() => setImportFeedback(null), 5000);
+        // Compare against existing products to detect duplicates
+        const duplicates = [];
+        const newItems = [];
+
+        parsedProducts.forEach(p => {
+          const match = products.find(
+            e => e.name.trim().toLowerCase() === p.name.trim().toLowerCase()
+          );
+          if (match) {
+            duplicates.push({ newItem: p, existingItem: match });
           } else {
-            setImportFeedback({
-              type: 'error',
-              message: `Error importing: ${res?.error || 'Unknown server error'}`
-            });
+            newItems.push(p);
           }
-        } else {
-          // Fallback if prop not provided
-          for (const prod of parsedProducts) {
-            onAddProduct(prod);
-          }
-          setIsImporting(false);
-          setImportFeedback({
-            type: 'success',
-            message: `✅ Imported ${parsedProducts.length} products!`
-          });
-          setTimeout(() => setImportFeedback(null), 5000);
-        }
+        });
+
+        // Open Import Confirmation Modal
+        setPendingImportData({
+          fileName: file.name,
+          allParsed: parsedProducts,
+          duplicates,
+          newItems
+        });
+        setIsImportConfirmModalOpen(true);
+        setIsImporting(false);
 
       } catch (err) {
         console.error('Excel parse error', err);
@@ -325,6 +327,71 @@ export default function ProductManagePage({
     };
 
     reader.readAsBinaryString(file);
+  };
+
+  // Cancel pending import without making changes
+  const handleCancelImport = () => {
+    setIsImportConfirmModalOpen(false);
+    setPendingImportData(null);
+    setIsProcessingImport(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Execute import with user choice: 'replace' or 'skip' for duplicates
+  const handleExecuteImport = async (duplicateAction = 'replace') => {
+    if (!pendingImportData || !pendingImportData.allParsed) return;
+    setIsProcessingImport(true);
+
+    try {
+      if (onBulkAddProducts) {
+        const res = await onBulkAddProducts(pendingImportData.allParsed, duplicateAction);
+        setIsProcessingImport(false);
+        setIsImportConfirmModalOpen(false);
+
+        if (res && res.success) {
+          const added = res.addedCount ?? pendingImportData.newItems.length;
+          const replaced = res.replacedCount ?? (duplicateAction === 'replace' ? pendingImportData.duplicates.length : 0);
+          const skipped = res.skippedCount ?? (duplicateAction === 'skip' ? pendingImportData.duplicates.length : 0);
+
+          let message = `✅ Successfully imported ${added} new products!`;
+          if (duplicateAction === 'replace' && replaced > 0) {
+            message = `✅ Successfully imported ${added} new products and updated ${replaced} duplicates!`;
+          } else if (duplicateAction === 'skip' && skipped > 0) {
+            message = `✅ Successfully imported ${added} new products (${skipped} duplicates skipped)!`;
+          }
+
+          setImportFeedback({ type: 'success', message });
+          setTimeout(() => setImportFeedback(null), 6000);
+        } else {
+          setImportFeedback({
+            type: 'error',
+            message: `Error importing: ${res?.error || 'Unknown server error'}`
+          });
+        }
+      } else {
+        // Fallback if prop not provided
+        const itemsToProcess = duplicateAction === 'skip' 
+          ? pendingImportData.newItems 
+          : pendingImportData.allParsed;
+        for (const prod of itemsToProcess) {
+          onAddProduct(prod);
+        }
+        setIsProcessingImport(false);
+        setIsImportConfirmModalOpen(false);
+        setImportFeedback({
+          type: 'success',
+          message: `✅ Imported ${itemsToProcess.length} products!`
+        });
+        setTimeout(() => setImportFeedback(null), 5000);
+      }
+    } catch (err) {
+      console.error('Import execution error', err);
+      setIsProcessingImport(false);
+      setImportFeedback({ type: 'error', message: 'Import failed: ' + err.message });
+    } finally {
+      setPendingImportData(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   // Open Edit Modal
@@ -1605,6 +1672,202 @@ export default function ProductManagePage({
                 Done
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: IMPORT CONFIRMATION & DUPLICATE RESOLUTION */}
+      {isImportConfirmModalOpen && pendingImportData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className={`p-4 text-white flex items-center justify-between ${
+              pendingImportData.duplicates.length > 0 
+                ? 'bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700' 
+                : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700'
+            }`}>
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-xs">
+                  {pendingImportData.duplicates.length > 0 ? (
+                    <AlertTriangle className="w-5 h-5 text-white stroke-[2.5]" />
+                  ) : (
+                    <FileSpreadsheet className="w-5 h-5 text-white" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold">
+                    {pendingImportData.duplicates.length > 0 ? 'Duplicate Products Detected' : 'Confirm Product Import'}
+                  </h3>
+                  <p className="text-[10px] text-white/80 truncate max-w-[220px]">
+                    {pendingImportData.fileName}
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                disabled={isProcessingImport}
+                onClick={handleCancelImport} 
+                className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs font-bold transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 space-y-3 flex-1 overflow-y-auto no-scrollbar">
+              
+              {/* File Summary Chips */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-center">
+                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">Total in File</span>
+                  <span className="text-base font-black text-slate-900">{pendingImportData.allParsed.length}</span>
+                </div>
+                <div className="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 text-center">
+                  <span className="text-[9px] text-emerald-600 block font-bold uppercase tracking-wider">New Items</span>
+                  <span className="text-base font-black text-emerald-700">{pendingImportData.newItems.length}</span>
+                </div>
+                <div className={`p-2.5 rounded-xl border text-center ${
+                  pendingImportData.duplicates.length > 0 ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <span className={`text-[9px] block font-bold uppercase tracking-wider ${
+                    pendingImportData.duplicates.length > 0 ? 'text-amber-700' : 'text-slate-400'
+                  }`}>
+                    Duplicates
+                  </span>
+                  <span className={`text-base font-black ${
+                    pendingImportData.duplicates.length > 0 ? 'text-amber-700' : 'text-slate-500'
+                  }`}>
+                    {pendingImportData.duplicates.length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Duplicates Alert Box */}
+              {pendingImportData.duplicates.length > 0 ? (
+                <div className="space-y-2.5">
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-xs space-y-1">
+                    <div className="flex items-center gap-2 font-bold text-amber-800">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                      <span>{pendingImportData.duplicates.length} duplicate product{pendingImportData.duplicates.length > 1 ? 's' : ''} found in file!</span>
+                    </div>
+                    <p className="text-[11px] text-amber-700 leading-relaxed">
+                      These products already exist in your inventory. Would you like to <strong>Replace</strong> existing products with new data, or <strong>Skip</strong> duplicates and only import new products?
+                    </p>
+                  </div>
+
+                  {/* Scrollable Duplicates List */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-1">
+                      Duplicate Items ({pendingImportData.duplicates.length})
+                    </span>
+                    <div className="max-h-48 overflow-y-auto space-y-1.5 p-1 bg-slate-50 rounded-xl border border-slate-200 divide-y divide-slate-100">
+                      {pendingImportData.duplicates.map(({ newItem, existingItem }, idx) => (
+                        <div key={idx} className="pt-1.5 first:pt-0 p-2 text-xs flex justify-between items-start gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-slate-900 truncate">{newItem.name}</p>
+                            <span className="text-[10px] text-slate-400">{newItem.brand || 'General'}</span>
+                            <div className="text-[10px] text-slate-500 flex flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
+                              <span>Existing: <strong>Rs. {existingItem.salePrice}</strong> ({existingItem.stock} pcs)</span>
+                              <span>→</span>
+                              <span className="text-amber-800 font-bold">New: <strong>Rs. {newItem.salePrice}</strong> ({newItem.stock} pcs)</span>
+                            </div>
+                          </div>
+                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 flex-shrink-0 border border-amber-200">
+                            Duplicate
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl text-blue-900 text-xs space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-blue-800">
+                    <CheckCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <span>All {pendingImportData.newItems.length} products are ready to import!</span>
+                  </div>
+                  <p className="text-[11px] text-blue-700">
+                    No duplicate products were found in your inventory. Click <strong>Confirm & Import (OK)</strong> to add all items to your catalog.
+                  </p>
+
+                  {/* Preview items */}
+                  <div className="max-h-44 overflow-y-auto space-y-1 p-1 bg-white rounded-xl border border-blue-100 divide-y divide-slate-100">
+                    {pendingImportData.newItems.slice(0, 6).map((item, idx) => (
+                      <div key={idx} className="p-2 text-xs flex justify-between items-center">
+                        <span className="font-bold text-slate-800 truncate max-w-[200px]">{item.name}</span>
+                        <span className="font-mono text-slate-600 text-[11px]">Rs. {item.salePrice} ({item.stock} pcs)</span>
+                      </div>
+                    ))}
+                    {pendingImportData.newItems.length > 6 && (
+                      <p className="text-[10px] text-center text-slate-400 py-1 font-semibold">
+                        + {pendingImportData.newItems.length - 6} more products
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Modal Action Buttons */}
+            <div className="p-3 bg-slate-50 border-t border-slate-200">
+              {pendingImportData.duplicates.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={isProcessingImport}
+                      onClick={() => handleExecuteImport('replace')}
+                      className="py-3 px-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      <span>{isProcessingImport ? 'Replacing...' : 'Replace Duplicates'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isProcessingImport}
+                      onClick={() => handleExecuteImport('skip')}
+                      className="py-3 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      <ArrowRight className="w-3.5 h-3.5" />
+                      <span>{isProcessingImport ? 'Skipping...' : 'Skip Duplicates'}</span>
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={isProcessingImport}
+                    onClick={handleCancelImport}
+                    className="w-full py-2.5 bg-white hover:bg-slate-100 text-slate-600 text-xs font-bold rounded-xl border border-slate-200 transition-all active:scale-98"
+                  >
+                    Cancel Import
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={isProcessingImport}
+                    onClick={handleCancelImport}
+                    className="w-1/3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl active:scale-95 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isProcessingImport}
+                    onClick={() => handleExecuteImport('replace')}
+                    className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Check className="w-4 h-4 stroke-[2.5]" />
+                    <span>{isProcessingImport ? 'Importing...' : 'Confirm & Import (OK)'}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
       )}

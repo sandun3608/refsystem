@@ -7,6 +7,7 @@ export default function CustomerShopPage({
   onSelectCustomer, 
   onAddCustomer, 
   onDeleteCustomer,
+  onSkipAndGoAhead,
   mainShop,
   rep
 }) {
@@ -145,6 +146,33 @@ export default function CustomerShopPage({
           )}
         </div>
       </div>
+
+      {/* Skip and Go Ahead Action Button */}
+      {onSkipAndGoAhead && (
+        <button
+          type="button"
+          onClick={onSkipAndGoAhead}
+          className="w-full p-3.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-2xl font-bold shadow-md shadow-purple-500/25 active:scale-98 transition-all duration-200 border border-purple-400/30 flex items-center justify-between group"
+        >
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-xs">
+              <Sparkles className="w-5 h-5 text-yellow-300" />
+            </div>
+            <div className="text-left">
+              <div className="text-xs font-black tracking-wide uppercase flex items-center gap-1.5">
+                <span>Skip and Go Ahead</span>
+                <span className="text-[9px] bg-emerald-500/90 text-white px-2 py-0.5 rounded-full font-bold">Catalog</span>
+              </div>
+              <p className="text-[11px] text-purple-100 font-medium">
+                Proceed directly to Inventory & Catalog
+              </p>
+            </div>
+          </div>
+          <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center group-hover:translate-x-1 transition-transform">
+            <ArrowRight className="w-4 h-4 text-white" />
+          </div>
+        </button>
+      )}
 
       {/* Add Customer Shop Button */}
       <button
